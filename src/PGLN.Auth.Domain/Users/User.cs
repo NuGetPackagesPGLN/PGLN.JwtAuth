@@ -5,6 +5,15 @@ namespace PGLN.Auth.Domain.Users;
 
 public sealed class User : AggregateRoot<UserId>
 {
+    private string _normalizedEmail = string.Empty;
+
+    private User()
+        : base(default)
+    {
+        Email = null!;
+        PasswordHash = string.Empty;
+    }
+
     private User(
         UserId id,
         Email email,
@@ -13,11 +22,15 @@ public sealed class User : AggregateRoot<UserId>
         : base(id)
     {
         Email = email;
+        _normalizedEmail = email.NormalizedValue;
         PasswordHash = passwordHash;
         CreatedAtUtc = createdAtUtc;
     }
 
     public Email Email { get; private set; }
+
+    public string NormalizedEmail =>
+        _normalizedEmail;
 
     public string PasswordHash { get; private set; }
 
@@ -36,11 +49,12 @@ public sealed class User : AggregateRoot<UserId>
         ArgumentNullException.ThrowIfNull(email);
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
 
-        var user = new User(
-            id,
-            email,
-            passwordHash,
-            createdAtUtc);
+        var user =
+            new User(
+                id,
+                email,
+                passwordHash,
+                createdAtUtc);
 
         user.RaiseDomainEvent(
             new UserRegistered(
@@ -51,7 +65,8 @@ public sealed class User : AggregateRoot<UserId>
         return user;
     }
 
-    public void ConfirmEmail(DateTimeOffset confirmedAtUtc)
+    public void ConfirmEmail(
+        DateTimeOffset confirmedAtUtc)
     {
         if (EmailConfirmed)
         {
