@@ -23,6 +23,10 @@ public static class DependencyInjection
             UserRepository>();
 
         services.AddScoped<
+            IEmailVerificationTokenRepository,
+            EmailVerificationTokenRepository>();
+
+        services.AddScoped<
             IUnitOfWork,
             UnitOfWork>();
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Time;
+using PGLN.Auth.Infrastructure.Authentication;
 using PGLN.Auth.Infrastructure.Passwords;
 using PGLN.Auth.Infrastructure.Time;
 
@@ -18,6 +19,14 @@ public static class DependencyInjection
         services.AddSingleton<
             IPasswordHasher,
             PasswordHasher>();
+
+        services.AddSingleton<
+            IVerificationTokenGenerator,
+            SecureVerificationTokenGenerator>();
+
+        services.AddSingleton<
+            ITokenHasher,
+            Sha256TokenHasher>();
 
         return services;
     }

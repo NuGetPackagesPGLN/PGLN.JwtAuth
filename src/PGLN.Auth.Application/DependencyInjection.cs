@@ -9,16 +9,25 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddPGLNAuthApplication(
         this IServiceCollection services,
-        PasswordPolicyOptions? passwordPolicy = null)
+        PasswordPolicyOptions? passwordPolicy = null,
+        EmailVerificationOptions? emailVerificationOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
         passwordPolicy ??=
             new PasswordPolicyOptions();
 
-        passwordPolicy.Validate();
+        emailVerificationOptions ??=
+            new EmailVerificationOptions();
 
-        services.AddSingleton(passwordPolicy);
+        passwordPolicy.Validate();
+        emailVerificationOptions.Validate();
+
+        services.AddSingleton(
+            passwordPolicy);
+
+        services.AddSingleton(
+            emailVerificationOptions);
 
         services.AddValidatorsFromAssembly(
             typeof(ApplicationAssemblyReference).Assembly,

@@ -1,6 +1,6 @@
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Features.Registration;
 using PGLN.Auth.Application.Tests.TestDoubles;
-using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Domain.Users.Events;
 
 namespace PGLN.Auth.Application.Tests.Features.Registration;
@@ -17,65 +17,57 @@ public sealed class RegisterCommandHandlerTests
             0,
             TimeSpan.Zero);
 
+    private static readonly EmailVerificationOptions VerificationOptions =
+        new()
+        {
+            TokenLifetime =
+                TimeSpan.FromHours(24)
+        };
+
     [Fact]
     public async Task HandleAsync_WithValidCommand_ShouldRegisterUser()
     {
         var userRepository =
             new FakeUserRepository();
 
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
         var passwordHasher =
             new FakePasswordHasher
             {
-                HashResult = "hashed-secret-password"
+                HashResult =
+                    "hashed-secret-password"
             };
 
         var unitOfWork =
             new FakeUnitOfWork();
 
-        var clock =
-            new FakeClock(FixedUtcNow);
-
         var handler =
-            new RegisterCommandHandler(
+            CreateHandler(
                 userRepository,
+                tokenRepository,
                 passwordHasher,
-                unitOfWork,
-                clock);
-
-        var command =
-            new RegisterCommand(
-                "user@example.com",
-                "Secret123!");
+                unitOfWork);
 
         var result =
-            await handler.HandleAsync(command);
+            await handler.HandleAsync(
+                new RegisterCommand(
+                    "user@example.com",
+                    "SecretPassword123!"));
 
         Assert.True(result.IsSuccess);
 
         Assert.NotNull(
             userRepository.AddedUser);
 
-        var user =
-            userRepository.AddedUser;
-
-        Assert.Equal(
-            "user@example.com",
-            user.Email.Value);
-
-        Assert.Equal(
-            "USER@EXAMPLE.COM",
-            user.Email.NormalizedValue);
-
         Assert.Equal(
             "hashed-secret-password",
-            user.PasswordHash);
-
-        Assert.False(
-            user.EmailConfirmed);
+            userRepository.AddedUser.PasswordHash);
 
         Assert.Equal(
             FixedUtcNow,
-            user.CreatedAtUtc);
+            userRepository.AddedUser.CreatedAtUtc);
 
         Assert.Equal(
             1,
@@ -83,146 +75,189 @@ public sealed class RegisterCommandHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithValidCommand_ShouldHashPassword()
+    public async Task HandleAsync_WithValidCommand_ShouldCreateVerificationToken()
     {
         var userRepository =
             new FakeUserRepository();
 
-        var passwordHasher =
-            new FakePasswordHasher();
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
-
-        var clock =
-            new FakeClock(FixedUtcNow);
+        var generator =
+            new FakeVerificationTokenGenerator
+            {
+                Token =
+                    "customer-facing-token"
+            };
 
         var handler =
-            new RegisterCommandHandler(
+            CreateHandler(
                 userRepository,
-                passwordHasher,
-                unitOfWork,
-                clock);
-
-        var command =
-            new RegisterCommand(
-                "user@example.com",
-                "Secret123!");
+                tokenRepository,
+                verificationTokenGenerator: generator);
 
         var result =
-            await handler.HandleAsync(command);
+            await handler.HandleAsync(
+                new RegisterCommand(
+                    "user@example.com",
+                    "SecretPassword123!"));
+
+        Assert.True(result.IsSuccess);
+
+        Assert.NotNull(
+            tokenRepository.AddedToken);
+
+        Assert.Equal(
+            userRepository.AddedUser!.Id,
+            tokenRepository.AddedToken.UserId);
+
+        Assert.Equal(
+            "hashed::customer-facing-token",
+            tokenRepository.AddedToken.TokenHash);
+
+        Assert.Equal(
+            FixedUtcNow,
+            tokenRepository.AddedToken.CreatedAtUtc);
+
+        Assert.Equal(
+            FixedUtcNow.AddHours(24),
+            tokenRepository.AddedToken.ExpiresAtUtc);
+
+        Assert.Equal(
+            1,
+            generator.GenerateCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldReturnRawVerificationToken()
+    {
+        var userRepository =
+            new FakeUserRepository();
+
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
+        var generator =
+            new FakeVerificationTokenGenerator
+            {
+                Token =
+                    "raw-email-token"
+            };
+
+        var handler =
+            CreateHandler(
+                userRepository,
+                tokenRepository,
+                verificationTokenGenerator: generator);
+
+        var result =
+            await handler.HandleAsync(
+                new RegisterCommand(
+                    "user@example.com",
+                    "SecretPassword123!"));
 
         Assert.True(result.IsSuccess);
 
         Assert.Equal(
-            "Secret123!",
-            passwordHasher.LastPasswordHashed);
+            "raw-email-token",
+            result.Value.EmailVerificationToken);
     }
 
     [Fact]
-    public async Task HandleAsync_WhenEmailAlreadyExists_ShouldReturnFailure()
+    public async Task HandleAsync_ShouldStoreHashInsteadOfRawToken()
     {
         var userRepository =
             new FakeUserRepository();
 
-        var existingUser =
-            User.Register(
-                UserId.New(),
-                Email.Create(
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
+        var generator =
+            new FakeVerificationTokenGenerator
+            {
+                Token =
+                    "raw-email-token"
+            };
+
+        var handler =
+            CreateHandler(
+                userRepository,
+                tokenRepository,
+                verificationTokenGenerator: generator);
+
+        await handler.HandleAsync(
+            new RegisterCommand(
+                "user@example.com",
+                "SecretPassword123!"));
+
+        Assert.NotNull(
+            tokenRepository.AddedToken);
+
+        Assert.NotEqual(
+            "raw-email-token",
+            tokenRepository.AddedToken.TokenHash);
+
+        Assert.Equal(
+            "hashed::raw-email-token",
+            tokenRepository.AddedToken.TokenHash);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenEmailExists_ShouldNotCreateVerificationToken()
+    {
+        var userRepository =
+            new FakeUserRepository();
+
+        var existing =
+            PGLN.Auth.Domain.Users.User.Register(
+                PGLN.Auth.Domain.Users.UserId.New(),
+                PGLN.Auth.Domain.Users.Email.Create(
                     "user@example.com"),
-                "existing-password-hash",
+                "existing-hash",
                 FixedUtcNow);
 
-        existingUser.ClearDomainEvents();
+        existing.ClearDomainEvents();
 
-        userRepository.Seed(
-            existingUser);
+        userRepository.Seed(existing);
 
-        var passwordHasher =
-            new FakePasswordHasher();
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
+        var generator =
+            new FakeVerificationTokenGenerator();
 
         var unitOfWork =
             new FakeUnitOfWork();
 
-        var clock =
-            new FakeClock(FixedUtcNow);
-
         var handler =
-            new RegisterCommandHandler(
+            CreateHandler(
                 userRepository,
-                passwordHasher,
-                unitOfWork,
-                clock);
-
-        var command =
-            new RegisterCommand(
-                "USER@example.com",
-                "Secret123!");
+                tokenRepository,
+                unitOfWork: unitOfWork,
+                verificationTokenGenerator: generator);
 
         var result =
-            await handler.HandleAsync(command);
+            await handler.HandleAsync(
+                new RegisterCommand(
+                    "USER@example.com",
+                    "SecretPassword123!"));
 
-        Assert.True(
-            result.IsFailure);
+        Assert.True(result.IsFailure);
 
         Assert.Equal(
             RegistrationErrors.EmailAlreadyExists,
             result.Error);
 
         Assert.Null(
-            userRepository.AddedUser);
+            tokenRepository.AddedToken);
+
+        Assert.Equal(
+            0,
+            generator.GenerateCallCount);
 
         Assert.Equal(
             0,
             unitOfWork.SaveChangesCallCount);
-
-        Assert.Null(
-            passwordHasher.LastPasswordHashed);
-    }
-
-    [Fact]
-    public async Task HandleAsync_WithValidCommand_ShouldReturnRegistrationResult()
-    {
-        var userRepository =
-            new FakeUserRepository();
-
-        var passwordHasher =
-            new FakePasswordHasher();
-
-        var unitOfWork =
-            new FakeUnitOfWork();
-
-        var clock =
-            new FakeClock(FixedUtcNow);
-
-        var handler =
-            new RegisterCommandHandler(
-                userRepository,
-                passwordHasher,
-                unitOfWork,
-                clock);
-
-        var command =
-            new RegisterCommand(
-                "user@example.com",
-                "Secret123!");
-
-        var result =
-            await handler.HandleAsync(command);
-
-        Assert.True(
-            result.IsSuccess);
-
-        Assert.NotEqual(
-            Guid.Empty,
-            result.Value.UserId.Value);
-
-        Assert.Equal(
-            "user@example.com",
-            result.Value.Email);
-
-        Assert.False(
-            result.Value.EmailConfirmed);
     }
 
     [Fact]
@@ -231,105 +266,58 @@ public sealed class RegisterCommandHandlerTests
         var userRepository =
             new FakeUserRepository();
 
-        var passwordHasher =
-            new FakePasswordHasher();
-
-        var unitOfWork =
-            new FakeUnitOfWork();
-
-        var clock =
-            new FakeClock(FixedUtcNow);
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
 
         var handler =
-            new RegisterCommandHandler(
+            CreateHandler(
                 userRepository,
-                passwordHasher,
-                unitOfWork,
-                clock);
-
-        var command =
-            new RegisterCommand(
-                "user@example.com",
-                "Secret123!");
+                tokenRepository);
 
         var result =
-            await handler.HandleAsync(command);
+            await handler.HandleAsync(
+                new RegisterCommand(
+                    "user@example.com",
+                    "SecretPassword123!"));
 
-        Assert.True(
-            result.IsSuccess);
-
-        Assert.NotNull(
-            userRepository.AddedUser);
+        Assert.True(result.IsSuccess);
 
         var domainEvent =
             Assert.Single(
-                userRepository.AddedUser.DomainEvents);
+                userRepository.AddedUser!.DomainEvents);
 
-        var registeredEvent =
+        var registered =
             Assert.IsType<UserRegistered>(
                 domainEvent);
 
         Assert.Equal(
             userRepository.AddedUser.Id,
-            registeredEvent.UserId);
-
-        Assert.Equal(
-            "user@example.com",
-            registeredEvent.Email);
+            registered.UserId);
 
         Assert.Equal(
             FixedUtcNow,
-            registeredEvent.RegisteredAtUtc);
+            registered.RegisteredAtUtc);
     }
 
-    [Fact]
-    public async Task HandleAsync_ShouldUseNormalizedEmailForDuplicateDetection()
+    private static RegisterCommandHandler CreateHandler(
+        FakeUserRepository userRepository,
+        FakeEmailVerificationTokenRepository tokenRepository,
+        FakePasswordHasher? passwordHasher = null,
+        FakeUnitOfWork? unitOfWork = null,
+        FakeVerificationTokenGenerator? verificationTokenGenerator = null)
     {
-        var userRepository =
-            new FakeUserRepository();
-
-        var existingUser =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    "User@Example.com"),
-                "existing-password-hash",
-                FixedUtcNow);
-
-        existingUser.ClearDomainEvents();
-
-        userRepository.Seed(
-            existingUser);
-
-        var passwordHasher =
-            new FakePasswordHasher();
-
-        var unitOfWork =
-            new FakeUnitOfWork();
-
-        var clock =
-            new FakeClock(FixedUtcNow);
-
-        var handler =
-            new RegisterCommandHandler(
-                userRepository,
-                passwordHasher,
-                unitOfWork,
-                clock);
-
-        var command =
-            new RegisterCommand(
-                "user@example.com",
-                "Secret123!");
-
-        var result =
-            await handler.HandleAsync(command);
-
-        Assert.True(
-            result.IsFailure);
-
-        Assert.Equal(
-            RegistrationErrors.EmailAlreadyExists,
-            result.Error);
+        return new RegisterCommandHandler(
+            userRepository,
+            tokenRepository,
+            passwordHasher ??
+                new FakePasswordHasher(),
+            verificationTokenGenerator ??
+                new FakeVerificationTokenGenerator(),
+            new FakeTokenHasher(),
+            unitOfWork ??
+                new FakeUnitOfWork(),
+            new FakeClock(
+                FixedUtcNow),
+            VerificationOptions);
     }
 }

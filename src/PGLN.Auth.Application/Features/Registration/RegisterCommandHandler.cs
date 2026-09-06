@@ -4,27 +4,53 @@ using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
 using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Domain.VerificationTokens;
 
 namespace PGLN.Auth.Application.Features.Registration;
 
 public sealed class RegisterCommandHandler
-    : ICommandHandler<RegisterCommand, Result<RegisterResult>>
+    : ICommandHandler<
+        RegisterCommand,
+        Result<RegisterResult>>
 {
     private readonly IUserRepository _userRepository;
+    private readonly IEmailVerificationTokenRepository _verificationTokenRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IVerificationTokenGenerator _verificationTokenGenerator;
+    private readonly ITokenHasher _tokenHasher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly EmailVerificationOptions _emailVerificationOptions;
 
     public RegisterCommandHandler(
         IUserRepository userRepository,
+        IEmailVerificationTokenRepository verificationTokenRepository,
         IPasswordHasher passwordHasher,
+        IVerificationTokenGenerator verificationTokenGenerator,
+        ITokenHasher tokenHasher,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        EmailVerificationOptions emailVerificationOptions)
     {
+        ArgumentNullException.ThrowIfNull(userRepository);
+        ArgumentNullException.ThrowIfNull(verificationTokenRepository);
+        ArgumentNullException.ThrowIfNull(passwordHasher);
+        ArgumentNullException.ThrowIfNull(verificationTokenGenerator);
+        ArgumentNullException.ThrowIfNull(tokenHasher);
+        ArgumentNullException.ThrowIfNull(unitOfWork);
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(emailVerificationOptions);
+
+        emailVerificationOptions.Validate();
+
         _userRepository = userRepository;
+        _verificationTokenRepository = verificationTokenRepository;
         _passwordHasher = passwordHasher;
+        _verificationTokenGenerator = verificationTokenGenerator;
+        _tokenHasher = tokenHasher;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _emailVerificationOptions = emailVerificationOptions;
     }
 
     public async Task<Result<RegisterResult>> HandleAsync(
@@ -33,7 +59,8 @@ public sealed class RegisterCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var email = Email.Create(command.Email);
+        var email =
+            Email.Create(command.Email);
 
         var emailAlreadyExists =
             await _userRepository.ExistsByNormalizedEmailAsync(
@@ -47,26 +74,51 @@ public sealed class RegisterCommandHandler
         }
 
         var passwordHash =
-            _passwordHasher.Hash(command.Password);
+            _passwordHasher.Hash(
+                command.Password);
 
-        var user = User.Register(
-            UserId.New(),
-            email,
-            passwordHash,
-            _clock.UtcNow);
+        var now =
+            _clock.UtcNow;
+
+        var user =
+            User.Register(
+                UserId.New(),
+                email,
+                passwordHash,
+                now);
+
+        var rawVerificationToken =
+            _verificationTokenGenerator.Generate();
+
+        var verificationTokenHash =
+            _tokenHasher.Hash(
+                rawVerificationToken);
+
+        var verificationToken =
+            EmailVerificationToken.Create(
+                EmailVerificationTokenId.New(),
+                user.Id,
+                verificationTokenHash,
+                now,
+                now.Add(
+                    _emailVerificationOptions.TokenLifetime));
 
         await _userRepository.AddAsync(
             user,
             cancellationToken);
 
+        await _verificationTokenRepository.AddAsync(
+            verificationToken,
+            cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        var result = new RegisterResult(
-            user.Id,
-            user.Email.Value,
-            user.EmailConfirmed);
-
-        return Result<RegisterResult>.Success(result);
+        return Result<RegisterResult>.Success(
+            new RegisterResult(
+                user.Id,
+                user.Email.Value,
+                user.EmailConfirmed,
+                rawVerificationToken));
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Time;
+using PGLN.Auth.Infrastructure.Authentication;
 using PGLN.Auth.Infrastructure.Passwords;
 using PGLN.Auth.Infrastructure.Time;
 
@@ -22,7 +23,8 @@ public sealed class DependencyInjectionTests
         var clock =
             provider.GetRequiredService<IClock>();
 
-        Assert.IsType<SystemClock>(clock);
+        Assert.IsType<SystemClock>(
+            clock);
     }
 
     [Fact]
@@ -41,5 +43,42 @@ public sealed class DependencyInjectionTests
 
         Assert.IsType<PasswordHasher>(
             passwordHasher);
+    }
+
+    [Fact]
+    public void AddPGLNAuthInfrastructure_ShouldRegisterVerificationTokenGenerator()
+    {
+        var services =
+            new ServiceCollection();
+
+        services.AddPGLNAuthInfrastructure();
+
+        using var provider =
+            services.BuildServiceProvider();
+
+        var generator =
+            provider.GetRequiredService<IVerificationTokenGenerator>();
+
+        Assert.IsType<
+            SecureVerificationTokenGenerator>(
+            generator);
+    }
+
+    [Fact]
+    public void AddPGLNAuthInfrastructure_ShouldRegisterTokenHasher()
+    {
+        var services =
+            new ServiceCollection();
+
+        services.AddPGLNAuthInfrastructure();
+
+        using var provider =
+            services.BuildServiceProvider();
+
+        var hasher =
+            provider.GetRequiredService<ITokenHasher>();
+
+        Assert.IsType<Sha256TokenHasher>(
+            hasher);
     }
 }

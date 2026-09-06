@@ -2,8 +2,12 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Messaging;
+using PGLN.Auth.Application.Abstractions.Persistence;
+using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
 using PGLN.Auth.Application.Features.Registration;
+using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Domain.VerificationTokens;
 
 namespace PGLN.Auth.Application.Tests.DependencyInjection;
 
@@ -48,6 +52,38 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
+    public void AddPGLNAuthApplication_ShouldRegisterEmailVerificationOptions()
+    {
+        var services =
+            new ServiceCollection();
+
+        var emailVerificationOptions =
+            new EmailVerificationOptions
+            {
+                TokenLifetime =
+                    TimeSpan.FromMinutes(30)
+            };
+
+        services.AddPGLNAuthApplication(
+            emailVerificationOptions:
+                emailVerificationOptions);
+
+        using var provider =
+            services.BuildServiceProvider();
+
+        var resolved =
+            provider.GetRequiredService<EmailVerificationOptions>();
+
+        Assert.Same(
+            emailVerificationOptions,
+            resolved);
+
+        Assert.Equal(
+            TimeSpan.FromMinutes(30),
+            resolved.TokenLifetime);
+    }
+
+    [Fact]
     public void AddPGLNAuthApplication_ShouldRegisterRegistrationValidator()
     {
         var services =
@@ -77,21 +113,8 @@ public sealed class DependencyInjectionTests
 
         services.AddPGLNAuthApplication();
 
-        services.AddScoped<
-            PGLN.Auth.Application.Abstractions.Persistence.IUserRepository,
-            StubUserRepository>();
-
-        services.AddScoped<
-            PGLN.Auth.Application.Abstractions.Persistence.IUnitOfWork,
-            StubUnitOfWork>();
-
-        services.AddScoped<
-            IPasswordHasher,
-            StubPasswordHasher>();
-
-        services.AddScoped<
-            PGLN.Auth.Application.Abstractions.Time.IClock,
-            StubClock>();
+        AddRegistrationDependencies(
+            services);
 
         using var provider =
             services.BuildServiceProvider();
@@ -126,21 +149,8 @@ public sealed class DependencyInjectionTests
                 MaximumLength = 128
             });
 
-        services.AddScoped<
-            PGLN.Auth.Application.Abstractions.Persistence.IUserRepository,
-            StubUserRepository>();
-
-        services.AddScoped<
-            PGLN.Auth.Application.Abstractions.Persistence.IUnitOfWork,
-            StubUnitOfWork>();
-
-        services.AddScoped<
-            IPasswordHasher,
-            StubPasswordHasher>();
-
-        services.AddScoped<
-            PGLN.Auth.Application.Abstractions.Time.IClock,
-            StubClock>();
+        AddRegistrationDependencies(
+            services);
 
         using var provider =
             services.BuildServiceProvider();
@@ -166,23 +176,53 @@ public sealed class DependencyInjectionTests
                 handler.HandleAsync(command));
     }
 
-    private sealed class StubUserRepository
-        : PGLN.Auth.Application.Abstractions.Persistence.IUserRepository
+    private static void AddRegistrationDependencies(
+        IServiceCollection services)
     {
-        public Task<PGLN.Auth.Domain.Users.User?> GetByIdAsync(
-            PGLN.Auth.Domain.Users.UserId userId,
+        services.AddScoped<
+            IUserRepository,
+            StubUserRepository>();
+
+        services.AddScoped<
+            IEmailVerificationTokenRepository,
+            StubEmailVerificationTokenRepository>();
+
+        services.AddScoped<
+            IUnitOfWork,
+            StubUnitOfWork>();
+
+        services.AddScoped<
+            IPasswordHasher,
+            StubPasswordHasher>();
+
+        services.AddScoped<
+            IVerificationTokenGenerator,
+            StubVerificationTokenGenerator>();
+
+        services.AddScoped<
+            ITokenHasher,
+            StubTokenHasher>();
+
+        services.AddScoped<
+            IClock,
+            StubClock>();
+    }
+
+    private sealed class StubUserRepository
+        : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(
+            UserId userId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<
-                PGLN.Auth.Domain.Users.User?>(null);
+            return Task.FromResult<User?>(null);
         }
 
-        public Task<PGLN.Auth.Domain.Users.User?> GetByNormalizedEmailAsync(
+        public Task<User?> GetByNormalizedEmailAsync(
             string normalizedEmail,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<
-                PGLN.Auth.Domain.Users.User?>(null);
+            return Task.FromResult<User?>(null);
         }
 
         public Task<bool> ExistsByNormalizedEmailAsync(
@@ -193,7 +233,36 @@ public sealed class DependencyInjectionTests
         }
 
         public Task AddAsync(
-            PGLN.Auth.Domain.Users.User user,
+            User user,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubEmailVerificationTokenRepository
+        : IEmailVerificationTokenRepository
+    {
+        public Task<EmailVerificationToken?> GetByTokenHashAsync(
+            string tokenHash,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<EmailVerificationToken?>(null);
+        }
+
+        public Task<IReadOnlyCollection<EmailVerificationToken>>
+            GetActiveByUserIdAsync(
+                UserId userId,
+                CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<EmailVerificationToken> result =
+                Array.Empty<EmailVerificationToken>();
+
+            return Task.FromResult(result);
+        }
+
+        public Task AddAsync(
+            EmailVerificationToken token,
             CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
@@ -201,7 +270,7 @@ public sealed class DependencyInjectionTests
     }
 
     private sealed class StubUnitOfWork
-        : PGLN.Auth.Application.Abstractions.Persistence.IUnitOfWork
+        : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(
             CancellationToken cancellationToken = default)
@@ -226,8 +295,26 @@ public sealed class DependencyInjectionTests
         }
     }
 
+    private sealed class StubVerificationTokenGenerator
+        : IVerificationTokenGenerator
+    {
+        public string Generate()
+        {
+            return "raw-verification-token";
+        }
+    }
+
+    private sealed class StubTokenHasher
+        : ITokenHasher
+    {
+        public string Hash(string token)
+        {
+            return $"hashed::{token}";
+        }
+    }
+
     private sealed class StubClock
-        : PGLN.Auth.Application.Abstractions.Time.IClock
+        : IClock
     {
         public DateTimeOffset UtcNow =>
             new(
