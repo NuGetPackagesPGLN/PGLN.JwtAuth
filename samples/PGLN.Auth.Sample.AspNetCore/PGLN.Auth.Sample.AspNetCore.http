@@ -1,0 +1,6 @@
+@PGLN.Auth.Sample.AspNetCore_HostAddress = http://localhost:5234
+
+GET {{PGLN.Auth.Sample.AspNetCore_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

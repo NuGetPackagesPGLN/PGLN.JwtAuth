@@ -1,0 +1,6 @@
+@PGLN.Auth.Sample.AwsLambda_HostAddress = http://localhost:5160
+
+GET {{PGLN.Auth.Sample.AwsLambda_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

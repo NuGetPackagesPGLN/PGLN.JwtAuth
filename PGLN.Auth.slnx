@@ -1,0 +1,29 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/PGLN.Auth.Sample.AspNetCore/PGLN.Auth.Sample.AspNetCore.csproj" />
+    <Project Path="samples/PGLN.Auth.Sample.AwsLambda/PGLN.Auth.Sample.AwsLambda.csproj" />
+    <Project Path="samples/PGLN.Auth.Sample.AzureFunctions/PGLN.Auth.Sample.AzureFunctions.csproj" />
+    <Project Path="samples/PGLN.Auth.Sample.ExistingApplication/PGLN.Auth.Sample.ExistingApplication.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/PGLN.Auth.Application/PGLN.Auth.Application.csproj" />
+    <Project Path="src/PGLN.Auth.AspNetCore/PGLN.Auth.AspNetCore.csproj" />
+    <Project Path="src/PGLN.Auth.Aws/PGLN.Auth.Aws.csproj" />
+    <Project Path="src/PGLN.Auth.Azure/PGLN.Auth.Azure.csproj" />
+    <Project Path="src/PGLN.Auth.Contracts/PGLN.Auth.Contracts.csproj" />
+    <Project Path="src/PGLN.Auth.Domain/PGLN.Auth.Domain.csproj" />
+    <Project Path="src/PGLN.Auth.EntityFrameworkCore/PGLN.Auth.EntityFrameworkCore.csproj" />
+    <Project Path="src/PGLN.Auth.Infrastructure/PGLN.Auth.Infrastructure.csproj" />
+    <Project Path="src/PGLN.Auth/PGLN.Auth.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PGLN.Auth.Application.Tests/PGLN.Auth.Application.Tests.csproj" />
+    <Project Path="tests/PGLN.Auth.ArchitectureTests/PGLN.Auth.ArchitectureTests.csproj" />
+    <Project Path="tests/PGLN.Auth.ContractTests/PGLN.Auth.ContractTests.csproj" />
+    <Project Path="tests/PGLN.Auth.Domain.Tests/PGLN.Auth.Domain.Tests.csproj" />
+    <Project Path="tests/PGLN.Auth.Infrastructure.Tests/PGLN.Auth.Infrastructure.Tests.csproj" />
+    <Project Path="tests/PGLN.Auth.IntegrationTests/PGLN.Auth.IntegrationTests.csproj" />
+    <Project Path="tests/PGLN.Auth.PerformanceTests/PGLN.Auth.PerformanceTests.csproj" />
+    <Project Path="tests/PGLN.Auth.SecurityTests/PGLN.Auth.SecurityTests.csproj" />
+  </Folder>
+</Solution>

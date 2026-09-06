@@ -1,0 +1,6 @@
+@PGLN.Auth.Sample.AzureFunctions_HostAddress = http://localhost:5224
+
+GET {{PGLN.Auth.Sample.AzureFunctions_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
