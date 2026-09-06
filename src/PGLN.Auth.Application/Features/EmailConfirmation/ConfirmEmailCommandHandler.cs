@@ -1,8 +1,10 @@
 using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
+using PGLN.Auth.Application.Events.Email;
 
 namespace PGLN.Auth.Application.Features.EmailConfirmation;
 
@@ -14,6 +16,7 @@ public sealed class ConfirmEmailCommandHandler
     private readonly IEmailVerificationTokenRepository _tokenRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITokenHasher _tokenHasher;
+    private readonly IIntegrationEventPublisher _integrationEventPublisher;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -21,12 +24,21 @@ public sealed class ConfirmEmailCommandHandler
         IEmailVerificationTokenRepository tokenRepository,
         IUserRepository userRepository,
         ITokenHasher tokenHasher,
+        IIntegrationEventPublisher integrationEventPublisher,
         IClock clock,
         IUnitOfWork unitOfWork)
     {
+        ArgumentNullException.ThrowIfNull(tokenRepository);
+        ArgumentNullException.ThrowIfNull(userRepository);
+        ArgumentNullException.ThrowIfNull(tokenHasher);
+        ArgumentNullException.ThrowIfNull(integrationEventPublisher);
+        ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(unitOfWork);
+
         _tokenRepository = tokenRepository;
         _userRepository = userRepository;
         _tokenHasher = tokenHasher;
+        _integrationEventPublisher = integrationEventPublisher;
         _clock = clock;
         _unitOfWork = unitOfWork;
     }
@@ -38,7 +50,8 @@ public sealed class ConfirmEmailCommandHandler
         ArgumentNullException.ThrowIfNull(command);
 
         var tokenHash =
-            _tokenHasher.Hash(command.Token);
+            _tokenHasher.Hash(
+                command.Token);
 
         var token =
             await _tokenRepository.GetByTokenHashAsync(
@@ -57,7 +70,10 @@ public sealed class ConfirmEmailCommandHandler
                 EmailConfirmationErrors.TokenAlreadyUsed);
         }
 
-        if (token.IsExpired(_clock.UtcNow))
+        var now =
+            _clock.UtcNow;
+
+        if (token.IsExpired(now))
         {
             return Result<ConfirmEmailResult>.Failure(
                 EmailConfirmationErrors.ExpiredToken);
@@ -75,10 +91,21 @@ public sealed class ConfirmEmailCommandHandler
         }
 
         user.ConfirmEmail(
-            _clock.UtcNow);
+            now);
 
         token.MarkAsUsed(
-            _clock.UtcNow);
+            now);
+
+        var welcomeRequested =
+            new WelcomeEmailRequested(
+                Guid.NewGuid(),
+                user.Id,
+                user.Email.Value,
+                now);
+
+        await _integrationEventPublisher.PublishAsync(
+            welcomeRequested,
+            cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);

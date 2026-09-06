@@ -1,3 +1,4 @@
+using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Application.Features.EmailConfirmation;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.Users;
@@ -13,8 +14,8 @@ public sealed class ConfirmEmailCommandHandlerTests
             2026,
             9,
             6,
-            12,
-            0,
+            18,
+            30,
             0,
             TimeSpan.Zero);
 
@@ -35,34 +36,37 @@ public sealed class ConfirmEmailCommandHandlerTests
         userRepository.Seed(user);
 
         var token =
-            EmailVerificationToken.Create(
-                EmailVerificationTokenId.New(),
-                user.Id,
-                "hashed::raw-token",
-                Now.AddHours(-1),
-                Now.AddHours(23));
+            CreateToken(
+                user.Id);
 
         tokenRepository.Seed(token);
+
+        var publisher =
+            new FakeIntegrationEventPublisher();
 
         var handler =
             CreateHandler(
                 tokenRepository,
-                userRepository);
+                userRepository,
+                publisher);
 
         var result =
             await handler.HandleAsync(
                 new ConfirmEmailCommand(
                     "raw-token"));
 
-        Assert.True(result.IsSuccess);
+        Assert.True(
+            result.IsSuccess);
 
-        Assert.True(user.EmailConfirmed);
+        Assert.True(
+            user.EmailConfirmed);
 
         Assert.Equal(
             Now,
             user.EmailConfirmedAtUtc);
 
-        Assert.True(token.IsUsed);
+        Assert.True(
+            token.IsUsed);
 
         Assert.Equal(
             Now,
@@ -70,7 +74,7 @@ public sealed class ConfirmEmailCommandHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithValidToken_ShouldRaiseEmailConfirmedEvent()
+    public async Task HandleAsync_WithValidToken_ShouldRaiseEmailConfirmedDomainEvent()
     {
         var userRepository =
             new FakeUserRepository();
@@ -85,11 +89,9 @@ public sealed class ConfirmEmailCommandHandlerTests
 
         userRepository.Seed(user);
 
-        var token =
+        tokenRepository.Seed(
             CreateToken(
-                user.Id);
-
-        tokenRepository.Seed(token);
+                user.Id));
 
         var handler =
             CreateHandler(
@@ -101,31 +103,32 @@ public sealed class ConfirmEmailCommandHandlerTests
                 new ConfirmEmailCommand(
                     "raw-token"));
 
-        Assert.True(result.IsSuccess);
+        Assert.True(
+            result.IsSuccess);
 
         var domainEvent =
             Assert.Single(
                 user.DomainEvents);
 
-        var confirmedEvent =
+        var emailConfirmed =
             Assert.IsType<EmailConfirmed>(
                 domainEvent);
 
         Assert.Equal(
             user.Id,
-            confirmedEvent.UserId);
+            emailConfirmed.UserId);
 
         Assert.Equal(
             user.Email.Value,
-            confirmedEvent.Email);
+            emailConfirmed.Email);
 
         Assert.Equal(
             Now,
-            confirmedEvent.ConfirmedAtUtc);
+            emailConfirmed.ConfirmedAtUtc);
     }
 
     [Fact]
-    public async Task HandleAsync_WithUnknownToken_ShouldReturnInvalidToken()
+    public async Task HandleAsync_WithValidToken_ShouldPublishWelcomeEmailRequested()
     {
         var userRepository =
             new FakeUserRepository();
@@ -133,138 +136,53 @@ public sealed class ConfirmEmailCommandHandlerTests
         var tokenRepository =
             new FakeEmailVerificationTokenRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var publisher =
+            new FakeIntegrationEventPublisher();
+
+        var user =
+            CreateUser();
+
+        user.ClearDomainEvents();
+
+        userRepository.Seed(user);
+
+        tokenRepository.Seed(
+            CreateToken(
+                user.Id));
 
         var handler =
             CreateHandler(
                 tokenRepository,
                 userRepository,
-                unitOfWork);
+                publisher);
 
         var result =
             await handler.HandleAsync(
                 new ConfirmEmailCommand(
-                    "unknown-token"));
+                    "raw-token"));
 
-        Assert.True(result.IsFailure);
+        Assert.True(
+            result.IsSuccess);
 
-        Assert.Equal(
-            EmailConfirmationErrors.InvalidToken,
-            result.Error);
+        var integrationEvent =
+            Assert.Single(
+                publisher.Events);
 
-        Assert.Equal(
-            0,
-            unitOfWork.SaveChangesCallCount);
-    }
-
-    [Fact]
-    public async Task HandleAsync_WithExpiredToken_ShouldReturnExpiredToken()
-    {
-        var userRepository =
-            new FakeUserRepository();
-
-        var tokenRepository =
-            new FakeEmailVerificationTokenRepository();
-
-        var user =
-            CreateUser();
-
-        userRepository.Seed(user);
-
-        var token =
-            EmailVerificationToken.Create(
-                EmailVerificationTokenId.New(),
-                user.Id,
-                "hashed::raw-token",
-                Now.AddDays(-2),
-                Now.AddSeconds(-1));
-
-        tokenRepository.Seed(token);
-
-        var result =
-            await CreateHandler(
-                    tokenRepository,
-                    userRepository)
-                .HandleAsync(
-                    new ConfirmEmailCommand(
-                        "raw-token"));
-
-        Assert.True(result.IsFailure);
+        var welcome =
+            Assert.IsType<WelcomeEmailRequested>(
+                integrationEvent);
 
         Assert.Equal(
-            EmailConfirmationErrors.ExpiredToken,
-            result.Error);
-
-        Assert.False(user.EmailConfirmed);
-    }
-
-    [Fact]
-    public async Task HandleAsync_WithUsedToken_ShouldReturnTokenAlreadyUsed()
-    {
-        var userRepository =
-            new FakeUserRepository();
-
-        var tokenRepository =
-            new FakeEmailVerificationTokenRepository();
-
-        var user =
-            CreateUser();
-
-        userRepository.Seed(user);
-
-        var token =
-            CreateToken(
-                user.Id);
-
-        token.MarkAsUsed(
-            Now.AddMinutes(-1));
-
-        tokenRepository.Seed(token);
-
-        var result =
-            await CreateHandler(
-                    tokenRepository,
-                    userRepository)
-                .HandleAsync(
-                    new ConfirmEmailCommand(
-                        "raw-token"));
-
-        Assert.True(result.IsFailure);
+            user.Id,
+            welcome.UserId);
 
         Assert.Equal(
-            EmailConfirmationErrors.TokenAlreadyUsed,
-            result.Error);
-    }
-
-    [Fact]
-    public async Task HandleAsync_WhenUserDoesNotExist_ShouldReturnUserNotFound()
-    {
-        var userRepository =
-            new FakeUserRepository();
-
-        var tokenRepository =
-            new FakeEmailVerificationTokenRepository();
-
-        var token =
-            CreateToken(
-                UserId.New());
-
-        tokenRepository.Seed(token);
-
-        var result =
-            await CreateHandler(
-                    tokenRepository,
-                    userRepository)
-                .HandleAsync(
-                    new ConfirmEmailCommand(
-                        "raw-token"));
-
-        Assert.True(result.IsFailure);
+            user.Email.Value,
+            welcome.Email);
 
         Assert.Equal(
-            EmailConfirmationErrors.UserNotFound,
-            result.Error);
+            Now,
+            welcome.OccurredAtUtc);
     }
 
     [Fact]
@@ -285,38 +203,207 @@ public sealed class ConfirmEmailCommandHandlerTests
         userRepository.Seed(user);
 
         tokenRepository.Seed(
-            CreateToken(user.Id));
+            CreateToken(
+                user.Id));
 
         var handler =
             CreateHandler(
                 tokenRepository,
                 userRepository,
-                unitOfWork);
+                unitOfWork: unitOfWork);
 
         var result =
             await handler.HandleAsync(
                 new ConfirmEmailCommand(
                     "raw-token"));
 
-        Assert.True(result.IsSuccess);
+        Assert.True(
+            result.IsSuccess);
 
         Assert.Equal(
             1,
             unitOfWork.SaveChangesCallCount);
     }
 
+    [Fact]
+    public async Task HandleAsync_WithUnknownToken_ShouldNotPublishWelcomeEmail()
+    {
+        var publisher =
+            new FakeIntegrationEventPublisher();
+
+        var unitOfWork =
+            new FakeUnitOfWork();
+
+        var handler =
+            CreateHandler(
+                new FakeEmailVerificationTokenRepository(),
+                new FakeUserRepository(),
+                publisher,
+                unitOfWork);
+
+        var result =
+            await handler.HandleAsync(
+                new ConfirmEmailCommand(
+                    "unknown-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            EmailConfirmationErrors.InvalidToken,
+            result.Error);
+
+        Assert.Empty(
+            publisher.Events);
+
+        Assert.Equal(
+            0,
+            unitOfWork.SaveChangesCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithExpiredToken_ShouldNotPublishWelcomeEmail()
+    {
+        var userRepository =
+            new FakeUserRepository();
+
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
+        var publisher =
+            new FakeIntegrationEventPublisher();
+
+        var user =
+            CreateUser();
+
+        userRepository.Seed(user);
+
+        tokenRepository.Seed(
+            EmailVerificationToken.Create(
+                EmailVerificationTokenId.New(),
+                user.Id,
+                "hashed::raw-token",
+                Now.AddDays(-2),
+                Now.AddSeconds(-1)));
+
+        var result =
+            await CreateHandler(
+                    tokenRepository,
+                    userRepository,
+                    publisher)
+                .HandleAsync(
+                    new ConfirmEmailCommand(
+                        "raw-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            EmailConfirmationErrors.ExpiredToken,
+            result.Error);
+
+        Assert.Empty(
+            publisher.Events);
+
+        Assert.False(
+            user.EmailConfirmed);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithUsedToken_ShouldNotPublishWelcomeEmail()
+    {
+        var userRepository =
+            new FakeUserRepository();
+
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
+        var publisher =
+            new FakeIntegrationEventPublisher();
+
+        var user =
+            CreateUser();
+
+        userRepository.Seed(user);
+
+        var token =
+            CreateToken(
+                user.Id);
+
+        token.MarkAsUsed(
+            Now.AddMinutes(-1));
+
+        tokenRepository.Seed(token);
+
+        var result =
+            await CreateHandler(
+                    tokenRepository,
+                    userRepository,
+                    publisher)
+                .HandleAsync(
+                    new ConfirmEmailCommand(
+                        "raw-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            EmailConfirmationErrors.TokenAlreadyUsed,
+            result.Error);
+
+        Assert.Empty(
+            publisher.Events);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenUserDoesNotExist_ShouldNotPublishWelcomeEmail()
+    {
+        var tokenRepository =
+            new FakeEmailVerificationTokenRepository();
+
+        var publisher =
+            new FakeIntegrationEventPublisher();
+
+        tokenRepository.Seed(
+            CreateToken(
+                UserId.New()));
+
+        var result =
+            await CreateHandler(
+                    tokenRepository,
+                    new FakeUserRepository(),
+                    publisher)
+                .HandleAsync(
+                    new ConfirmEmailCommand(
+                        "raw-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            EmailConfirmationErrors.UserNotFound,
+            result.Error);
+
+        Assert.Empty(
+            publisher.Events);
+    }
+
     private static ConfirmEmailCommandHandler CreateHandler(
         FakeEmailVerificationTokenRepository tokenRepository,
         FakeUserRepository userRepository,
+        FakeIntegrationEventPublisher? publisher = null,
         FakeUnitOfWork? unitOfWork = null)
     {
         return new ConfirmEmailCommandHandler(
             tokenRepository,
             userRepository,
             new FakeTokenHasher(),
-            new FakeClock(Now),
+            publisher ??
+                new FakeIntegrationEventPublisher(),
+            new FakeClock(
+                Now),
             unitOfWork ??
-            new FakeUnitOfWork());
+                new FakeUnitOfWork());
     }
 
     private static User CreateUser()
