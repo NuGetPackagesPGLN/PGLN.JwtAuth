@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.AspNetCore\PGLN.Auth.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>
