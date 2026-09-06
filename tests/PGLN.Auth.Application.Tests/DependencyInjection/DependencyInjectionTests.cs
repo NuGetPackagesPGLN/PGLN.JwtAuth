@@ -206,6 +206,10 @@ public sealed class DependencyInjectionTests
         services.AddScoped<
             IClock,
             StubClock>();
+
+        services.AddScoped<
+            PGLN.Auth.Application.Abstractions.Events.IIntegrationEventPublisher,
+            StubIntegrationEventPublisher>();
     }
 
     private sealed class StubUserRepository
@@ -327,3 +331,4 @@ public sealed class DependencyInjectionTests
                 TimeSpan.Zero);
     }
 }
+

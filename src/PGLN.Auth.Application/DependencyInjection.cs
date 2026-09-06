@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Messaging;
+using PGLN.Auth.Application.Abstractions.Email;
+using PGLN.Auth.Application.Abstractions.Events;
 
 namespace PGLN.Auth.Application;
 
@@ -10,7 +12,7 @@ public static class DependencyInjection
     public static IServiceCollection AddPGLNAuthApplication(
         this IServiceCollection services,
         PasswordPolicyOptions? passwordPolicy = null,
-        EmailVerificationOptions? emailVerificationOptions = null)
+        EmailVerificationOptions? emailVerificationOptions = null, EmailDeliveryOptions? emailDeliveryOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -20,14 +22,21 @@ public static class DependencyInjection
         emailVerificationOptions ??=
             new EmailVerificationOptions();
 
+        emailDeliveryOptions ??=
+            new EmailDeliveryOptions();
+
         passwordPolicy.Validate();
         emailVerificationOptions.Validate();
+        emailDeliveryOptions.Validate();
 
         services.AddSingleton(
             passwordPolicy);
 
         services.AddSingleton(
             emailVerificationOptions);
+
+        services.AddSingleton(
+            emailDeliveryOptions);
 
         services.AddValidatorsFromAssembly(
             typeof(ApplicationAssemblyReference).Assembly,
@@ -48,6 +57,12 @@ public static class DependencyInjection
                             classes.AssignableTo(
                                 typeof(IQueryHandler<,>)))
                     .AsImplementedInterfaces()
+                    .WithTransientLifetime()
+                    .AddClasses(
+                        classes =>
+                            classes.AssignableTo(
+                                typeof(IIntegrationEventHandler<>)))
+                    .AsImplementedInterfaces()
                     .WithTransientLifetime());
 
         services.Decorate(
@@ -57,3 +72,4 @@ public static class DependencyInjection
         return services;
     }
 }
+

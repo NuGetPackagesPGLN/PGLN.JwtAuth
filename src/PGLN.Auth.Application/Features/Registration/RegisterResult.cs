@@ -5,5 +5,4 @@ namespace PGLN.Auth.Application.Features.Registration;
 public sealed record RegisterResult(
     UserId UserId,
     string Email,
-    bool EmailConfirmed,
-    string EmailVerificationToken);
+    bool EmailConfirmed);

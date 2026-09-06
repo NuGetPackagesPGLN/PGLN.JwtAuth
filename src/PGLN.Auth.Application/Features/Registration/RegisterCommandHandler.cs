@@ -1,8 +1,10 @@
 using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
+using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Domain.VerificationTokens;
 
@@ -18,6 +20,7 @@ public sealed class RegisterCommandHandler
     private readonly IPasswordHasher _passwordHasher;
     private readonly IVerificationTokenGenerator _verificationTokenGenerator;
     private readonly ITokenHasher _tokenHasher;
+    private readonly IIntegrationEventPublisher _integrationEventPublisher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
     private readonly EmailVerificationOptions _emailVerificationOptions;
@@ -28,6 +31,7 @@ public sealed class RegisterCommandHandler
         IPasswordHasher passwordHasher,
         IVerificationTokenGenerator verificationTokenGenerator,
         ITokenHasher tokenHasher,
+        IIntegrationEventPublisher integrationEventPublisher,
         IUnitOfWork unitOfWork,
         IClock clock,
         EmailVerificationOptions emailVerificationOptions)
@@ -37,6 +41,7 @@ public sealed class RegisterCommandHandler
         ArgumentNullException.ThrowIfNull(passwordHasher);
         ArgumentNullException.ThrowIfNull(verificationTokenGenerator);
         ArgumentNullException.ThrowIfNull(tokenHasher);
+        ArgumentNullException.ThrowIfNull(integrationEventPublisher);
         ArgumentNullException.ThrowIfNull(unitOfWork);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(emailVerificationOptions);
@@ -48,6 +53,7 @@ public sealed class RegisterCommandHandler
         _passwordHasher = passwordHasher;
         _verificationTokenGenerator = verificationTokenGenerator;
         _tokenHasher = tokenHasher;
+        _integrationEventPublisher = integrationEventPublisher;
         _unitOfWork = unitOfWork;
         _clock = clock;
         _emailVerificationOptions = emailVerificationOptions;
@@ -111,6 +117,18 @@ public sealed class RegisterCommandHandler
             verificationToken,
             cancellationToken);
 
+        var confirmationRequested =
+            new EmailConfirmationRequested(
+                Guid.NewGuid(),
+                user.Id,
+                user.Email.Value,
+                rawVerificationToken,
+                now);
+
+        await _integrationEventPublisher.PublishAsync(
+            confirmationRequested,
+            cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
 
@@ -118,7 +136,6 @@ public sealed class RegisterCommandHandler
             new RegisterResult(
                 user.Id,
                 user.Email.Value,
-                user.EmailConfirmed,
-                rawVerificationToken));
+                user.EmailConfirmed));
     }
 }
