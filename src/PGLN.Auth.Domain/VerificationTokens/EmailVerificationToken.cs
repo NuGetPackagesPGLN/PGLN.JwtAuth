@@ -1,4 +1,4 @@
-using PGLN.Auth.Domain.Common;
+﻿using PGLN.Auth.Domain.Common;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Domain.VerificationTokens;
@@ -77,6 +77,24 @@ public sealed class EmailVerificationToken
                !IsExpired(utcNow);
     }
 
+    public void Revoke(
+        DateTimeOffset revokedAtUtc)
+    {
+        if (IsUsed)
+        {
+            return;
+        }
+
+        if (revokedAtUtc < CreatedAtUtc)
+        {
+            throw new ArgumentException(
+                "The revocation time cannot be earlier than the creation time.",
+                nameof(revokedAtUtc));
+        }
+
+        UsedAtUtc = revokedAtUtc;
+    }
+
     public void MarkAsUsed(
         DateTimeOffset usedAtUtc)
     {
@@ -95,3 +113,4 @@ public sealed class EmailVerificationToken
         UsedAtUtc = usedAtUtc;
     }
 }
+

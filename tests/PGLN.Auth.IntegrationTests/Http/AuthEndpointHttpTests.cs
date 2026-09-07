@@ -333,7 +333,233 @@ public sealed class AuthEndpointHttpTests
             second.StatusCode);
     }
 
-    private static async Task<string> GetRawConfirmationTokenAsync(
+        [Fact]
+    public async Task ResendConfirmation_WithUnconfirmedUser_ShouldReturn202()
+    {
+        await using var testApp =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            testApp.CreateClient();
+
+        var registration =
+            await client.PostAsJsonAsync(
+                "/api/auth/register",
+                new RegisterRequest(
+                    "user@example.com",
+                    "SecretPassword123!"));
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registration.StatusCode);
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/auth/resend-confirmation",
+                new ResendEmailConfirmationRequest(
+                    "user@example.com"));
+
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            response.StatusCode);
+
+        var body =
+            await response.Content
+                .ReadFromJsonAsync<
+                    ResendEmailConfirmationResponse>();
+
+        Assert.NotNull(
+            body);
+
+        Assert.Equal(
+            "If an unconfirmed account exists for that email address, a confirmation email has been sent.",
+            body.Message);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_WithUnknownEmail_ShouldReturn202()
+    {
+        await using var testApp =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            testApp.CreateClient();
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/auth/resend-confirmation",
+                new ResendEmailConfirmationRequest(
+                    "unknown@example.com"));
+
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            response.StatusCode);
+
+        var body =
+            await response.Content
+                .ReadFromJsonAsync<
+                    ResendEmailConfirmationResponse>();
+
+        Assert.NotNull(
+            body);
+
+        Assert.Equal(
+            "If an unconfirmed account exists for that email address, a confirmation email has been sent.",
+            body.Message);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_WithConfirmedUser_ShouldReturnSamePublicResponse()
+    {
+        await using var testApp =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            testApp.CreateClient();
+
+        var registration =
+            await client.PostAsJsonAsync(
+                "/api/auth/register",
+                new RegisterRequest(
+                    "user@example.com",
+                    "SecretPassword123!"));
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registration.StatusCode);
+
+        var token =
+            await GetRawConfirmationTokenAsync(
+                testApp);
+
+        var confirmation =
+            await client.PostAsJsonAsync(
+                "/api/auth/confirm-email",
+                new ConfirmEmailRequest(
+                    token));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            confirmation.StatusCode);
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/auth/resend-confirmation",
+                new ResendEmailConfirmationRequest(
+                    "user@example.com"));
+
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            response.StatusCode);
+
+        var body =
+            await response.Content
+                .ReadFromJsonAsync<
+                    ResendEmailConfirmationResponse>();
+
+        Assert.NotNull(
+            body);
+
+        Assert.Equal(
+            "If an unconfirmed account exists for that email address, a confirmation email has been sent.",
+            body.Message);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_KnownAndUnknownEmails_ShouldReturnIdenticalPublicResponses()
+    {
+        await using var knownApp =
+            await HttpTestApplication.CreateAsync();
+
+        using var knownClient =
+            knownApp.CreateClient();
+
+        await knownClient.PostAsJsonAsync(
+            "/api/auth/register",
+            new RegisterRequest(
+                "user@example.com",
+                "SecretPassword123!"));
+
+        var knownResponse =
+            await knownClient.PostAsJsonAsync(
+                "/api/auth/resend-confirmation",
+                new ResendEmailConfirmationRequest(
+                    "user@example.com"));
+
+        var knownJson =
+            await knownResponse.Content
+                .ReadAsStringAsync();
+
+        await using var unknownApp =
+            await HttpTestApplication.CreateAsync();
+
+        using var unknownClient =
+            unknownApp.CreateClient();
+
+        var unknownResponse =
+            await unknownClient.PostAsJsonAsync(
+                "/api/auth/resend-confirmation",
+                new ResendEmailConfirmationRequest(
+                    "unknown@example.com"));
+
+        var unknownJson =
+            await unknownResponse.Content
+                .ReadAsStringAsync();
+
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            knownResponse.StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.Accepted,
+            unknownResponse.StatusCode);
+
+        Assert.Equal(
+            knownJson,
+            unknownJson);
+    }
+
+    [Fact]
+    public async Task ResendConfirmation_WithInvalidEmail_ShouldReturn400()
+    {
+        await using var testApp =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            testApp.CreateClient();
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/auth/resend-confirmation",
+                new ResendEmailConfirmationRequest(
+                    "not-an-email"));
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var validation =
+            await response.Content
+                .ReadFromJsonAsync<
+                    ValidationErrorResponse>();
+
+        Assert.NotNull(
+            validation);
+
+        Assert.Equal(
+            "Validation.Failed",
+            validation.Code);
+
+        Assert.Contains(
+            validation.Errors.Keys,
+            key =>
+                string.Equals(
+                    key,
+                    "Email",
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
+private static async Task<string> GetRawConfirmationTokenAsync(
         HttpTestApplication testApp)
     {
         using var scope =
@@ -373,4 +599,5 @@ public sealed class AuthEndpointHttpTests
                 "Verification token was not present in the protected integration event.");
     }
 }
+
 
