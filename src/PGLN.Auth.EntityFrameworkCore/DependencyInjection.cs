@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Persistence;
@@ -56,6 +56,14 @@ public static class DependencyInjection
             IUnitOfWork,
             UnitOfWork>();
 
-        return services;
+                services.AddScoped<
+            IRefreshTokenRepository,
+            RefreshTokenRepository>();
+
+        services.AddScoped<
+            ILoginAttemptRepository,
+            LoginAttemptRepository>();
+return services;
     }
 }
+

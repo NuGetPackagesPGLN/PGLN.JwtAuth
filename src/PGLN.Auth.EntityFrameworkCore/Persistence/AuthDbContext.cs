@@ -1,5 +1,7 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.LoginAttempts;
 using PGLN.Auth.Domain.VerificationTokens;
 using PGLN.Auth.EntityFrameworkCore.Outbox;
 
@@ -23,6 +25,12 @@ public sealed class AuthDbContext
     public DbSet<OutboxMessage> OutboxMessages =>
         Set<OutboxMessage>();
 
+    public DbSet<RefreshToken> RefreshTokens =>
+        Set<RefreshToken>();
+
+    public DbSet<LoginAttempt> LoginAttempts =>
+        Set<LoginAttempt>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -32,3 +40,5 @@ public sealed class AuthDbContext
             typeof(AuthDbContext).Assembly);
     }
 }
+
+
