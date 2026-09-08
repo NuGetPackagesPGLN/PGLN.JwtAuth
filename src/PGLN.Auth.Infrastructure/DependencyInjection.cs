@@ -1,3 +1,4 @@
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Time;
@@ -10,11 +11,30 @@ namespace PGLN.Auth.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddPGLNAuthInfrastructure(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(
+            services);
 
-        services.AddSingleton<IClock, SystemClock>();
+        ArgumentNullException.ThrowIfNull(
+            configuration);
+
+        var jwtOptions =
+            configuration
+                .GetSection("PGLNAuth:Jwt")
+                .Get<JwtOptions>()
+            ?? throw new InvalidOperationException(
+                "JWT configuration section 'PGLNAuth:Jwt' is missing.");
+
+        jwtOptions.Validate();
+
+        services.AddSingleton(
+            jwtOptions);
+
+        services.AddSingleton<
+            IClock,
+            SystemClock>();
 
         services.AddSingleton<
             IPasswordHasher,
@@ -27,6 +47,14 @@ public static class DependencyInjection
         services.AddSingleton<
             ITokenHasher,
             Sha256TokenHasher>();
+
+        services.AddSingleton<
+            IAccessTokenGenerator,
+            JwtAccessTokenGenerator>();
+
+        services.AddSingleton<
+            IRefreshTokenGenerator,
+            SecureRefreshTokenGenerator>();
 
         return services;
     }

@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.TestHost;
-using Microsoft.AspNetCore.Hosting;
+﻿using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application;
 using PGLN.Auth.Application.Abstractions.Email;
@@ -48,13 +50,17 @@ internal sealed class HttpTestApplication
         var builder =
             WebApplication.CreateBuilder();
 
+        ConfigureJwt(
+            builder.Configuration);
+
         builder.WebHost.UseTestServer();
 
         builder.Services
             .AddPGLNAuthApplication();
 
         builder.Services
-            .AddPGLNAuthInfrastructure();
+            .AddPGLNAuthInfrastructure(
+                builder.Configuration);
 
         builder.Services
             .AddPGLNAuthEntityFrameworkCore(
@@ -89,7 +95,8 @@ internal sealed class HttpTestApplication
                 scope.ServiceProvider
                     .GetRequiredService<AuthDbContext>();
 
-            await dbContext.Database.EnsureCreatedAsync();
+            await dbContext.Database
+                .EnsureCreatedAsync();
         }
 
         return new HttpTestApplication(
@@ -97,11 +104,37 @@ internal sealed class HttpTestApplication
             connection);
     }
 
+    private static void ConfigureJwt(
+        ConfigurationManager configuration)
+    {
+        var signingKey =
+            RandomNumberGenerator.GetBytes(
+                32);
+
+        configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["PGLNAuth:Jwt:Issuer"] =
+                    "PGLN.Auth.IntegrationTests",
+
+                ["PGLNAuth:Jwt:Audience"] =
+                    "PGLN.Auth.IntegrationTests.Client",
+
+                ["PGLNAuth:Jwt:SigningKey"] =
+                    Convert.ToBase64String(
+                        signingKey),
+
+                ["PGLNAuth:Jwt:AccessTokenLifetime"] =
+                    "00:15:00"
+            });
+    }
+
     public async ValueTask DisposeAsync()
     {
         await Application.StopAsync();
+
         await Application.DisposeAsync();
+
         await _connection.DisposeAsync();
     }
 }
-
