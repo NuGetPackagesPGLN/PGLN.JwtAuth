@@ -32,9 +32,11 @@ public static class AuthEndpointRouteBuilderExtensions
             group);
 
                 group.MapLoginEndpoint();
+        group.MapRefreshTokenEndpoint();
 
         return group;
     }
 }
+
 
 

@@ -39,4 +39,15 @@ internal sealed class FakeRefreshTokenRepository
 
         return Task.CompletedTask;
     }
+
+    public void Seed(
+        RefreshToken refreshToken)
+    {
+        ArgumentNullException.ThrowIfNull(
+            refreshToken);
+
+        _tokens.Add(
+            refreshToken);
+    }
 }
+
