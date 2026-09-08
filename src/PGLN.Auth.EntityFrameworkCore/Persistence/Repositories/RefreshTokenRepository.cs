@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using PGLN.Auth.Domain.Users;
+using Microsoft.EntityFrameworkCore;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.RefreshTokens;
 
@@ -60,6 +61,20 @@ public sealed class RefreshTokenRepository
             .ToListAsync(
                 cancellationToken);
     }
+
+    public async Task<IReadOnlyCollection<RefreshToken>> GetByUserIdAsync(
+        UserId userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext
+            .RefreshTokens
+            .Where(
+                refreshToken =>
+                    refreshToken.UserId == userId)
+            .ToListAsync(
+                cancellationToken);
+    }
 }
+
 
 

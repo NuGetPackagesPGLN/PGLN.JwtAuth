@@ -1,4 +1,5 @@
-﻿using PGLN.Auth.Application.Abstractions.Persistence;
+﻿using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.RefreshTokens;
 
 namespace PGLN.Auth.Application.Tests.TestDoubles;
@@ -64,6 +65,22 @@ internal sealed class FakeRefreshTokenRepository
         return Task.FromResult(
             result);
     }
+
+    public Task<IReadOnlyCollection<RefreshToken>> GetByUserIdAsync(
+        UserId userId,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyCollection<RefreshToken> result =
+            _tokens
+                .Where(
+                    token =>
+                        token.UserId == userId)
+                .ToArray();
+
+        return Task.FromResult(
+            result);
+    }
 }
+
 
 

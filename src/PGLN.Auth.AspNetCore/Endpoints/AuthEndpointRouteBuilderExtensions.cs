@@ -37,6 +37,9 @@ public static class AuthEndpointRouteBuilderExtensions
 
         group.MapLogout();
 
+        group.MapLogoutAll();
+
         return group;
     }
 }
+
