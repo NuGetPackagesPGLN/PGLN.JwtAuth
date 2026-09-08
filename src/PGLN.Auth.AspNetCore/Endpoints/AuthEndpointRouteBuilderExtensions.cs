@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using PGLN.Auth.AspNetCore.Endpoints.Authentication;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.AspNetCore.Endpoints.EmailConfirmation;
 using PGLN.Auth.AspNetCore.Endpoints.Registration;
@@ -30,6 +31,10 @@ public static class AuthEndpointRouteBuilderExtensions
         ResendEmailConfirmationEndpoint.Map(
             group);
 
+                group.MapLoginEndpoint();
+
         return group;
     }
 }
+
+

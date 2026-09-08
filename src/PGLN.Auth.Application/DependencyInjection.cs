@@ -1,9 +1,10 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
-using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
+using PGLN.Auth.Application.Abstractions.Messaging;
+using PGLN.Auth.Application.Messaging;
 
 namespace PGLN.Auth.Application;
 
@@ -12,7 +13,9 @@ public static class DependencyInjection
     public static IServiceCollection AddPGLNAuthApplication(
         this IServiceCollection services,
         PasswordPolicyOptions? passwordPolicy = null,
-        EmailVerificationOptions? emailVerificationOptions = null, EmailDeliveryOptions? emailDeliveryOptions = null)
+        EmailVerificationOptions? emailVerificationOptions = null,
+        EmailDeliveryOptions? emailDeliveryOptions = null,
+        RefreshTokenOptions? refreshTokenOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -25,9 +28,13 @@ public static class DependencyInjection
         emailDeliveryOptions ??=
             new EmailDeliveryOptions();
 
+        refreshTokenOptions ??=
+            new RefreshTokenOptions();
+
         passwordPolicy.Validate();
         emailVerificationOptions.Validate();
         emailDeliveryOptions.Validate();
+        refreshTokenOptions.Validate();
 
         services.AddSingleton(
             passwordPolicy);
@@ -37,6 +44,9 @@ public static class DependencyInjection
 
         services.AddSingleton(
             emailDeliveryOptions);
+
+        services.AddSingleton(
+            refreshTokenOptions);
 
         services.AddValidatorsFromAssembly(
             typeof(ApplicationAssemblyReference).Assembly,
@@ -69,7 +79,10 @@ public static class DependencyInjection
             typeof(ICommandHandler<,>),
             typeof(ValidationCommandHandlerDecorator<,>));
 
+        services.AddScoped<
+            IRequestDispatcher,
+            RequestDispatcher>();
+
         return services;
     }
 }
-
