@@ -49,5 +49,21 @@ internal sealed class FakeRefreshTokenRepository
         _tokens.Add(
             refreshToken);
     }
+
+    public Task<IReadOnlyCollection<RefreshToken>> GetByFamilyIdAsync(
+        RefreshTokenFamilyId familyId,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyCollection<RefreshToken> result =
+            _tokens
+                .Where(
+                    token =>
+                        token.FamilyId == familyId)
+                .ToArray();
+
+        return Task.FromResult(
+            result);
+    }
 }
+
 

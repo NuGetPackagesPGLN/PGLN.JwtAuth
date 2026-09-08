@@ -1,34 +1,48 @@
-﻿using PGLN.Auth.Domain.Common;
-using PGLN.Auth.Domain.Users;
+﻿using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Domain.RefreshTokens;
 
 public sealed class RefreshToken
-    : Entity<RefreshTokenId>
 {
     private RefreshToken()
-        : base(default)
     {
-        TokenHash = string.Empty;
     }
 
     private RefreshToken(
         RefreshTokenId id,
+        RefreshTokenFamilyId familyId,
         UserId userId,
         string tokenHash,
         DateTimeOffset createdAtUtc,
         DateTimeOffset expiresAtUtc)
-        : base(id)
     {
-        UserId = userId;
-        TokenHash = tokenHash;
-        CreatedAtUtc = createdAtUtc;
-        ExpiresAtUtc = expiresAtUtc;
+        Id =
+            id;
+
+        FamilyId =
+            familyId;
+
+        UserId =
+            userId;
+
+        TokenHash =
+            tokenHash;
+
+        CreatedAtUtc =
+            createdAtUtc;
+
+        ExpiresAtUtc =
+            expiresAtUtc;
     }
+
+    public RefreshTokenId Id { get; private set; }
+
+    public RefreshTokenFamilyId FamilyId { get; private set; }
 
     public UserId UserId { get; private set; }
 
-    public string TokenHash { get; private set; }
+    public string TokenHash { get; private set; } =
+        string.Empty;
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
@@ -43,8 +57,23 @@ public sealed class RefreshToken
     public bool IsRevoked =>
         RevokedAtUtc.HasValue;
 
+    public bool IsExpired(
+        DateTimeOffset now)
+    {
+        return now >= ExpiresAtUtc;
+    }
+
+    public bool IsActive(
+        DateTimeOffset now)
+    {
+        return
+            !IsRevoked &&
+            !IsExpired(now);
+    }
+
     public static RefreshToken Create(
         RefreshTokenId id,
+        RefreshTokenFamilyId familyId,
         UserId userId,
         string tokenHash,
         DateTimeOffset createdAtUtc,
@@ -53,32 +82,27 @@ public sealed class RefreshToken
         ArgumentException.ThrowIfNullOrWhiteSpace(
             tokenHash);
 
+        if (familyId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Refresh token family id cannot be empty.",
+                nameof(familyId));
+        }
+
         if (expiresAtUtc <= createdAtUtc)
         {
             throw new ArgumentException(
-                "The expiration time must be later than the creation time.",
+                "Refresh token expiration time must be later than its creation time.",
                 nameof(expiresAtUtc));
         }
 
         return new RefreshToken(
             id,
+            familyId,
             userId,
             tokenHash,
             createdAtUtc,
             expiresAtUtc);
-    }
-
-    public bool IsExpired(
-        DateTimeOffset utcNow)
-    {
-        return utcNow >= ExpiresAtUtc;
-    }
-
-    public bool IsActive(
-        DateTimeOffset utcNow)
-    {
-        return !IsRevoked &&
-               !IsExpired(utcNow);
     }
 
     public void Revoke(
@@ -109,22 +133,22 @@ public sealed class RefreshToken
 
     public void Rotate(
         RefreshTokenId replacementTokenId,
-        DateTimeOffset rotatedAtUtc)
+        DateTimeOffset revokedAtUtc)
     {
         if (IsRevoked)
         {
             return;
         }
 
-        if (rotatedAtUtc < CreatedAtUtc)
+        if (revokedAtUtc < CreatedAtUtc)
         {
             throw new ArgumentException(
                 "The rotation time cannot be earlier than the creation time.",
-                nameof(rotatedAtUtc));
+                nameof(revokedAtUtc));
         }
 
         RevokedAtUtc =
-            rotatedAtUtc;
+            revokedAtUtc;
 
         RevocationReason =
             "Rotated";

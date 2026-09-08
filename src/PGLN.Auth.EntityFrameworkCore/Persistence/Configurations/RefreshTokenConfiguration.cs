@@ -1,92 +1,109 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PGLN.Auth.Domain.RefreshTokens;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.EntityFrameworkCore.Persistence.Configurations;
 
-public sealed class RefreshTokenConfiguration
+internal sealed class RefreshTokenConfiguration
     : IEntityTypeConfiguration<RefreshToken>
 {
     public void Configure(
         EntityTypeBuilder<RefreshToken> builder)
     {
-        var idConverter =
-            new ValueConverter<RefreshTokenId, Guid>(
-                id => id.Value,
-                value => new RefreshTokenId(value));
-
-        var userIdConverter =
-            new ValueConverter<UserId, Guid>(
-                id => id.Value,
-                value => new UserId(value));
-
-        var replacementConverter =
-            new ValueConverter<RefreshTokenId?, Guid?>(
-                id =>
-                    id.HasValue
-                        ? id.Value.Value
-                        : null,
-                value =>
-                    value.HasValue
-                        ? new RefreshTokenId(value.Value)
-                        : null);
-
         builder.ToTable(
             "RefreshTokens");
 
         builder.HasKey(
-            token => token.Id);
+            refreshToken =>
+                refreshToken.Id);
 
-        builder
-            .Property(token => token.Id)
-            .HasConversion(idConverter)
-            .ValueGeneratedNever();
+        builder.Property(
+                refreshToken =>
+                    refreshToken.Id)
+            .HasConversion(
+                id =>
+                    id.Value,
+                value =>
+                    new RefreshTokenId(
+                        value));
 
-        builder
-            .Property(token => token.UserId)
-            .HasConversion(userIdConverter)
+        builder.Property(
+                refreshToken =>
+                    refreshToken.FamilyId)
+            .HasConversion(
+                familyId =>
+                    familyId.Value,
+                value =>
+                    RefreshTokenFamilyId.From(
+                        value))
             .IsRequired();
 
-        builder
-            .Property(token => token.TokenHash)
+        builder.Property(
+                refreshToken =>
+                    refreshToken.UserId)
+            .HasConversion(
+                userId =>
+                    userId.Value,
+                value =>
+                    new UserId(
+                        value))
+            .IsRequired();
+
+        builder.Property(
+                refreshToken =>
+                    refreshToken.TokenHash)
             .HasMaxLength(128)
             .IsRequired();
 
-        builder
-            .HasIndex(token => token.TokenHash)
-            .IsUnique();
-
-        builder
-            .HasIndex(token => token.UserId);
-
-        builder
-            .HasIndex(token => token.ExpiresAtUtc);
-
-        builder
-            .Property(token => token.CreatedAtUtc)
+        builder.Property(
+                refreshToken =>
+                    refreshToken.CreatedAtUtc)
             .IsRequired();
 
-        builder
-            .Property(token => token.ExpiresAtUtc)
+        builder.Property(
+                refreshToken =>
+                    refreshToken.ExpiresAtUtc)
             .IsRequired();
 
-        builder
-            .Property(token => token.RevokedAtUtc);
+        builder.Property(
+            refreshToken =>
+                refreshToken.RevokedAtUtc);
 
-        builder
-            .Property(token => token.RevocationReason)
+        builder.Property(
+                refreshToken =>
+                    refreshToken.RevocationReason)
             .HasMaxLength(256);
 
-        builder
-            .Property(token => token.ReplacedByTokenId)
-            .HasConversion(replacementConverter);
+        builder.Property(
+                refreshToken =>
+                    refreshToken.ReplacedByTokenId)
+            .HasConversion(
+                replacementId =>
+                    replacementId.HasValue
+                        ? replacementId.Value.Value
+                        : (Guid?)null,
+                value =>
+                    value.HasValue
+                        ? new RefreshTokenId(
+                            value.Value)
+                        : null);
 
-        builder
-            .HasOne<User>()
-            .WithMany()
-            .HasForeignKey(token => token.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(
+                refreshToken =>
+                    refreshToken.TokenHash)
+            .IsUnique();
+
+        builder.HasIndex(
+            refreshToken =>
+                refreshToken.UserId);
+
+        builder.HasIndex(
+            refreshToken =>
+                refreshToken.FamilyId);
+
+        builder.HasIndex(
+            refreshToken =>
+                refreshToken.ExpiresAtUtc);
     }
 }

@@ -54,7 +54,7 @@ public sealed class RefreshTokenPersistenceTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 "HASHED-REFRESH-TOKEN",
                 Now,
                 Now.AddDays(30));
@@ -120,7 +120,7 @@ public sealed class RefreshTokenPersistenceTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 "HASHED-OLD-TOKEN",
                 Now,
                 Now.AddDays(30));
@@ -151,4 +151,70 @@ public sealed class RefreshTokenPersistenceTests
             replacementId,
             persisted.ReplacedByTokenId);
     }
+    [Fact]
+    public async Task RefreshToken_FamilyId_ShouldPersist()
+    {
+        await using var connection =
+            new SqliteConnection(
+                "Data Source=:memory:");
+
+        await connection.OpenAsync();
+
+        var options =
+            new DbContextOptionsBuilder<AuthDbContext>()
+                .UseSqlite(connection)
+                .Options;
+
+        await using var context =
+            new AuthDbContext(
+                options);
+
+        await context.Database
+            .EnsureCreatedAsync();
+
+        var user =
+            User.Register(
+                UserId.New(),
+                Email.Create(
+                    "family-user@example.com"),
+                "hashed-password",
+                Now);
+
+        user.ClearDomainEvents();
+
+        var familyId =
+            RefreshTokenFamilyId.New();
+
+        var token =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "family-persistence-token-hash",
+                Now,
+                Now.AddDays(30));
+
+        context.Users.Add(
+            user);
+
+        context.RefreshTokens.Add(
+            token);
+
+        await context.SaveChangesAsync();
+
+        context.ChangeTracker.Clear();
+
+        var persisted =
+            await context.RefreshTokens
+                .SingleAsync(
+                    refreshToken =>
+                        refreshToken.Id == token.Id);
+
+        Assert.Equal(
+            familyId,
+            persisted.FamilyId);
+    }
 }
+
+
+

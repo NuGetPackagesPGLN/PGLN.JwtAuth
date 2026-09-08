@@ -41,7 +41,7 @@ public sealed class RefreshTokenTests
             () =>
                 RefreshToken.Create(
                     RefreshTokenId.New(),
-                    UserId.New(),
+                    RefreshTokenFamilyId.New(), UserId.New(),
                     "hashed-token",
                     Now,
                     Now));
@@ -53,7 +53,7 @@ public sealed class RefreshTokenTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                UserId.New(),
+                RefreshTokenFamilyId.New(), UserId.New(),
                 "hashed-token",
                 Now,
                 Now.AddHours(1));
@@ -199,9 +199,10 @@ public sealed class RefreshTokenTests
     {
         return RefreshToken.Create(
             RefreshTokenId.New(),
-            UserId.New(),
+            RefreshTokenFamilyId.New(), UserId.New(),
             "hashed-token",
             Now,
             Now.AddDays(30));
     }
 }
+

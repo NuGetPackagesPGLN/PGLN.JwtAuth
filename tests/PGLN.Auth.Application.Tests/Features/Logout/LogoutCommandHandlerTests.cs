@@ -150,7 +150,7 @@ public sealed class LogoutCommandHandlerTests
         repository.Seed(
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                UserId.New(),
+                RefreshTokenFamilyId.New(), UserId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-31),
                 Now.AddSeconds(-1)));
@@ -191,9 +191,10 @@ public sealed class LogoutCommandHandlerTests
     {
         return RefreshToken.Create(
             RefreshTokenId.New(),
-            UserId.New(),
+            RefreshTokenFamilyId.New(), UserId.New(),
             "hashed::raw-refresh-token",
             Now.AddDays(-1),
             Now.AddDays(29));
     }
 }
+

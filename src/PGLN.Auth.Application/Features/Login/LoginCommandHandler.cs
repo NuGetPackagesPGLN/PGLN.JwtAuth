@@ -135,7 +135,7 @@ public sealed class LoginCommandHandler
         var refreshToken =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 refreshTokenHash,
                 now,
                 now.Add(
@@ -195,3 +195,4 @@ public sealed class LoginCommandHandler
             cancellationToken);
     }
 }
+

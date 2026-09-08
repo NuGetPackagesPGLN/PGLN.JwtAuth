@@ -67,9 +67,10 @@ public sealed class RefreshTokenLogoutTests
     {
         return RefreshToken.Create(
             RefreshTokenId.New(),
-            UserId.New(),
+            RefreshTokenFamilyId.New(), UserId.New(),
             "HASHED-TOKEN",
             Now,
             Now.AddDays(30));
     }
 }
+

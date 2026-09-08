@@ -11,4 +11,9 @@ public interface IRefreshTokenRepository
     Task AddAsync(
         RefreshToken refreshToken,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<RefreshToken>> GetByFamilyIdAsync(
+        RefreshTokenFamilyId familyId,
+        CancellationToken cancellationToken = default);
 }
+

@@ -94,6 +94,42 @@ public sealed class TokenRefreshCommandHandler
 
         if (existingToken.IsRevoked)
         {
+            if (
+                existingToken.RevocationReason ==
+                "Rotated")
+            {
+                var familyTokens =
+                    await _refreshTokenRepository
+                        .GetByFamilyIdAsync(
+                            existingToken.FamilyId,
+                            cancellationToken);
+
+                var familyWasRevoked =
+                    false;
+
+                foreach (var familyToken in familyTokens)
+                {
+                    if (!familyToken.IsActive(now))
+                    {
+                        continue;
+                    }
+
+                    familyToken.Revoke(
+                        now,
+                        "RefreshTokenReuseDetected");
+
+                    familyWasRevoked =
+                        true;
+                }
+
+                if (familyWasRevoked)
+                {
+                    await _unitOfWork
+                        .SaveChangesAsync(
+                            cancellationToken);
+                }
+            }
+
             return Result<TokenRefreshResult>.Failure(
                 TokenRefreshErrors.RevokedToken);
         }
@@ -126,7 +162,7 @@ public sealed class TokenRefreshCommandHandler
         var replacement =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                existingToken.FamilyId, user.Id,
                 replacementTokenHash,
                 now,
                 now.Add(
@@ -160,3 +196,6 @@ public sealed class TokenRefreshCommandHandler
                 replacement.ExpiresAtUtc));
     }
 }
+
+
+

@@ -88,7 +88,7 @@ public sealed class TokenRefreshCommandHandlerTests
         tokens.Seed(
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 "hashed::raw-refresh-token",
                 Now.AddDays(-31),
                 Now.AddSeconds(-1)));
@@ -136,7 +136,7 @@ public sealed class TokenRefreshCommandHandlerTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 "hashed::raw-refresh-token",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -203,7 +203,7 @@ public sealed class TokenRefreshCommandHandlerTests
         tokens.Seed(
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                missingUserId,
+                RefreshTokenFamilyId.New(), missingUserId,
                 "hashed::raw-refresh-token",
                 Now.AddDays(-1),
                 Now.AddDays(29)));
@@ -546,9 +546,396 @@ public sealed class TokenRefreshCommandHandlerTests
     {
         return RefreshToken.Create(
             RefreshTokenId.New(),
-            userId,
+            RefreshTokenFamilyId.New(), userId,
             "hashed::raw-refresh-token",
             Now.AddDays(-1),
             Now.AddDays(29));
     }
+
+    [Fact]
+    public async Task HandleAsync_WithValidToken_ShouldPreserveRefreshTokenFamily()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var familyId =
+            RefreshTokenFamilyId.New();
+
+        var existing =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        var tokens =
+            new FakeRefreshTokenRepository();
+
+        tokens.Seed(
+            existing);
+
+        var result =
+            await CreateHandler(
+                    tokens,
+                    users)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var replacement =
+            tokens.Tokens.Single(
+                token =>
+                    token.Id != existing.Id);
+
+        Assert.Equal(
+            familyId,
+            existing.FamilyId);
+
+        Assert.Equal(
+            familyId,
+            replacement.FamilyId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithReusedRotatedToken_ShouldRevokeActiveTokenFamily()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var familyId =
+            RefreshTokenFamilyId.New();
+
+        var rotatedToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-2),
+                Now.AddDays(28));
+
+        var activeReplacement =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::replacement-refresh-token",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        rotatedToken.Rotate(
+            activeReplacement.Id,
+            Now.AddDays(-1));
+
+        var repository =
+            new FakeRefreshTokenRepository();
+
+        repository.Seed(
+            rotatedToken);
+
+        repository.Seed(
+            activeReplacement);
+
+        var unitOfWork =
+            new FakeUnitOfWork();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var result =
+            await CreateHandler(
+                    repository,
+                    users,
+                    refreshTokenGenerator,
+                    accessTokenGenerator,
+                    unitOfWork)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            TokenRefreshErrors.RevokedToken,
+            result.Error);
+
+        Assert.True(
+            activeReplacement.IsRevoked);
+
+        Assert.Equal(
+            "RefreshTokenReuseDetected",
+            activeReplacement.RevocationReason);
+
+        Assert.Equal(
+            Now,
+            activeReplacement.RevokedAtUtc);
+
+        Assert.Equal(
+            1,
+            unitOfWork.SaveChangesCallCount);
+
+        Assert.Equal(
+            0,
+            refreshTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            0,
+            accessTokenGenerator.GenerateCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithReusedRotatedToken_ShouldNotRevokeDifferentFamily()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var compromisedFamilyId =
+            RefreshTokenFamilyId.New();
+
+        var unrelatedFamilyId =
+            RefreshTokenFamilyId.New();
+
+        var rotatedToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                compromisedFamilyId,
+                user.Id,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-2),
+                Now.AddDays(28));
+
+        var compromisedReplacement =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                compromisedFamilyId,
+                user.Id,
+                "hashed::compromised-replacement",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        var unrelatedToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                unrelatedFamilyId,
+                user.Id,
+                "hashed::unrelated-token",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        rotatedToken.Rotate(
+            compromisedReplacement.Id,
+            Now.AddDays(-1));
+
+        var repository =
+            new FakeRefreshTokenRepository();
+
+        repository.Seed(
+            rotatedToken);
+
+        repository.Seed(
+            compromisedReplacement);
+
+        repository.Seed(
+            unrelatedToken);
+
+        var result =
+            await CreateHandler(
+                    repository,
+                    users)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.True(
+            compromisedReplacement.IsRevoked);
+
+        Assert.Equal(
+            "RefreshTokenReuseDetected",
+            compromisedReplacement.RevocationReason);
+
+        Assert.False(
+            unrelatedToken.IsRevoked);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithLogoutRevokedToken_ShouldNotRevokeFamily()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var familyId =
+            RefreshTokenFamilyId.New();
+
+        var loggedOutToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-2),
+                Now.AddDays(28));
+
+        var otherActiveToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::other-token",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        loggedOutToken.Revoke(
+            Now.AddMinutes(-10),
+            "Logout");
+
+        var repository =
+            new FakeRefreshTokenRepository();
+
+        repository.Seed(
+            loggedOutToken);
+
+        repository.Seed(
+            otherActiveToken);
+
+        var unitOfWork =
+            new FakeUnitOfWork();
+
+        var result =
+            await CreateHandler(
+                    repository,
+                    users,
+                    unitOfWork:
+                        unitOfWork)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            TokenRefreshErrors.RevokedToken,
+            result.Error);
+
+        Assert.False(
+            otherActiveToken.IsRevoked);
+
+        Assert.Equal(
+            0,
+            unitOfWork.SaveChangesCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithReusedRotatedToken_WhenFamilyAlreadyRevoked_ShouldNotSaveAgain()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var familyId =
+            RefreshTokenFamilyId.New();
+
+        var rotatedToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-2),
+                Now.AddDays(28));
+
+        var replacement =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                "hashed::replacement",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        rotatedToken.Rotate(
+            replacement.Id,
+            Now.AddDays(-1));
+
+        replacement.Revoke(
+            Now.AddMinutes(-5),
+            "RefreshTokenReuseDetected");
+
+        var repository =
+            new FakeRefreshTokenRepository();
+
+        repository.Seed(
+            rotatedToken);
+
+        repository.Seed(
+            replacement);
+
+        var unitOfWork =
+            new FakeUnitOfWork();
+
+        var result =
+            await CreateHandler(
+                    repository,
+                    users,
+                    unitOfWork:
+                        unitOfWork)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            TokenRefreshErrors.RevokedToken,
+            result.Error);
+
+        Assert.Equal(
+            0,
+            unitOfWork.SaveChangesCallCount);
+    }
 }
+
+
+

@@ -47,4 +47,19 @@ public sealed class RefreshTokenRepository
                 refreshToken,
                 cancellationToken);
     }
+
+    public async Task<IReadOnlyCollection<RefreshToken>> GetByFamilyIdAsync(
+        RefreshTokenFamilyId familyId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext
+            .RefreshTokens
+            .Where(
+                refreshToken =>
+                    refreshToken.FamilyId == familyId)
+            .ToListAsync(
+                cancellationToken);
+    }
 }
+
+

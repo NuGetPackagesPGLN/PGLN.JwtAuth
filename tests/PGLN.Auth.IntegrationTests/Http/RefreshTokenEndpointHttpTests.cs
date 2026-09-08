@@ -178,6 +178,121 @@ public sealed class RefreshTokenEndpointHttpTests
     }
 
     [Fact]
+    public async Task Refresh_ReusingRotatedToken_ShouldRevokeTokenFamily()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            application.CreateClient();
+
+        var login =
+            await LoginAsync(
+                application,
+                client);
+
+        // Token A -> Token B
+        var firstRefresh =
+            await client.PostAsJsonAsync(
+                "/api/auth/refresh",
+                new RefreshTokenRequest(
+                    login.RefreshToken));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            firstRefresh.StatusCode);
+
+        var firstRefreshBody =
+            await firstRefresh.Content
+                .ReadFromJsonAsync<RefreshTokenResponse>();
+
+        Assert.NotNull(
+            firstRefreshBody);
+
+        var replacementRawToken =
+            firstRefreshBody.RefreshToken;
+
+        // Replay Token A.
+        var replay =
+            await client.PostAsJsonAsync(
+                "/api/auth/refresh",
+                new RefreshTokenRequest(
+                    login.RefreshToken));
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            replay.StatusCode);
+
+        // Verify Token B was revoked because the family
+        // is now considered compromised.
+        await using (
+            var scope =
+                application.Application.Services
+                    .CreateAsyncScope())
+        {
+            var dbContext =
+                scope.ServiceProvider
+                    .GetRequiredService<AuthDbContext>();
+
+            var tokens =
+                await dbContext.RefreshTokens
+                    .AsNoTracking()
+                    .ToListAsync();
+
+            Assert.Equal(
+                2,
+                tokens.Count);
+
+            var original =
+                tokens.Single(
+                    token =>
+                        token.ReplacedByTokenId.HasValue);
+
+            var replacement =
+                tokens.Single(
+                    token =>
+                        token.Id ==
+                        original.ReplacedByTokenId!.Value);
+
+            Assert.Equal(
+                original.FamilyId,
+                replacement.FamilyId);
+
+            Assert.Equal(
+                "Rotated",
+                original.RevocationReason);
+
+            Assert.True(
+                replacement.IsRevoked);
+
+            Assert.NotNull(
+                replacement.RevokedAtUtc);
+
+            Assert.Equal(
+                "RefreshTokenReuseDetected",
+                replacement.RevocationReason);
+        }
+
+        // Token B must now also be unusable.
+        var compromisedReplacement =
+            await client.PostAsJsonAsync(
+                "/api/auth/refresh",
+                new RefreshTokenRequest(
+                    replacementRawToken));
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            compromisedReplacement.StatusCode);
+
+        var body =
+            await compromisedReplacement.Content
+                .ReadAsStringAsync();
+
+        Assert.Contains(
+            "TokenRefresh.RevokedToken",
+            body);
+    }
+    [Fact]
     public async Task Refresh_WithUnknownToken_ShouldReturn401()
     {
         await using var application =
@@ -362,7 +477,7 @@ public sealed class RefreshTokenEndpointHttpTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 tokenHasher.Hash(
                     rawRefreshToken),
                 now.AddDays(-31),
@@ -377,4 +492,6 @@ public sealed class RefreshTokenEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
+
 

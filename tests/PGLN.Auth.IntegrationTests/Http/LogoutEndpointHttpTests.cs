@@ -352,7 +352,7 @@ public sealed class LogoutEndpointHttpTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                user.Id,
+                RefreshTokenFamilyId.New(), user.Id,
                 tokenHasher.Hash(
                     rawRefreshToken),
                 now.AddDays(-31),
@@ -367,3 +367,4 @@ public sealed class LogoutEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
