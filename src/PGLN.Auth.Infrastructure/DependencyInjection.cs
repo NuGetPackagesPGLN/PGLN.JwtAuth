@@ -1,8 +1,11 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Email;
+using PGLN.Auth.Application.Abstractions.Security;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Infrastructure.Authentication;
+using PGLN.Auth.Infrastructure.Email;
 using PGLN.Auth.Infrastructure.Passwords;
 using PGLN.Auth.Infrastructure.Time;
 
@@ -56,6 +59,16 @@ public static class DependencyInjection
             IRefreshTokenGenerator,
             SecureRefreshTokenGenerator>();
 
+        services.AddSingleton<
+            IPasswordResetTokenGenerator,
+            SecurePasswordResetTokenGenerator>();
+
+        services.AddSingleton<
+            IEmailTemplateRenderer,
+            DefaultEmailTemplateRenderer>();
+
         return services;
     }
 }
+
+

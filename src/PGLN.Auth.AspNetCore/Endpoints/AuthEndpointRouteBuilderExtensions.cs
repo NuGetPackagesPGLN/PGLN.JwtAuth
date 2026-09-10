@@ -38,8 +38,10 @@ public static class AuthEndpointRouteBuilderExtensions
         group.MapLogout();
 
         group.MapLogoutAll();
+        group.MapResetPassword();
 
         return group;
     }
 }
+
 

@@ -265,7 +265,7 @@ public sealed class JwtAccessTokenGeneratorTests
         var user =
             User.Register(
                 UserId.New(),
-                Email.Create(
+                PGLN.Auth.Domain.Users.Email.Create(
                     "user@example.com"),
                 "hashed-password",
                 now.AddDays(-1));
@@ -278,3 +278,4 @@ public sealed class JwtAccessTokenGeneratorTests
         return user;
     }
 }
+

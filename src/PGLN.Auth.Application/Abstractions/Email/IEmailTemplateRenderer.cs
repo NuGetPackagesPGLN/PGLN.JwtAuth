@@ -1,4 +1,4 @@
-namespace PGLN.Auth.Application.Abstractions.Email;
+﻿namespace PGLN.Auth.Application.Abstractions.Email;
 
 public interface IEmailTemplateRenderer
 {
@@ -8,4 +8,8 @@ public interface IEmailTemplateRenderer
 
     EmailMessage RenderWelcomeEmail(
         string email);
+
+    EmailMessage RenderPasswordReset(
+        string email,
+        string resetUrl);
 }

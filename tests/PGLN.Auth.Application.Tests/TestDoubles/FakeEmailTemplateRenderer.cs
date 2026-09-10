@@ -1,4 +1,4 @@
-using PGLN.Auth.Application.Abstractions.Email;
+﻿using PGLN.Auth.Application.Abstractions.Email;
 
 namespace PGLN.Auth.Application.Tests.TestDoubles;
 
@@ -30,4 +30,16 @@ internal sealed class FakeEmailTemplateRenderer
             "<p>Welcome to PGLN.Auth.</p>",
             "Welcome to PGLN.Auth.");
     }
+
+    public EmailMessage RenderPasswordReset(
+        string email,
+        string resetUrl)
+    {
+        return new EmailMessage(
+            email,
+            "Reset your password",
+            $"<p>Reset password: {resetUrl}</p>",
+            $"Reset password: {resetUrl}");
+    }
 }
+

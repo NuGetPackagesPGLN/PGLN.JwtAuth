@@ -15,8 +15,11 @@ public static class DependencyInjection
         Action<DbContextOptionsBuilder> configureOptions,
         OutboxProcessingOptions? outboxOptions = null)
     {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configureOptions);
+        ArgumentNullException.ThrowIfNull(
+            services);
+
+        ArgumentNullException.ThrowIfNull(
+            configureOptions);
 
         outboxOptions ??=
             new OutboxProcessingOptions();
@@ -38,6 +41,18 @@ public static class DependencyInjection
             EmailVerificationTokenRepository>();
 
         services.AddScoped<
+            IPasswordResetTokenRepository,
+            PasswordResetTokenRepository>();
+
+        services.AddScoped<
+            IRefreshTokenRepository,
+            RefreshTokenRepository>();
+
+        services.AddScoped<
+            ILoginAttemptRepository,
+            LoginAttemptRepository>();
+
+        services.AddScoped<
             IIntegrationEventPublisher,
             OutboxIntegrationEventPublisher>();
 
@@ -56,14 +71,6 @@ public static class DependencyInjection
             IUnitOfWork,
             UnitOfWork>();
 
-                services.AddScoped<
-            IRefreshTokenRepository,
-            RefreshTokenRepository>();
-
-        services.AddScoped<
-            ILoginAttemptRepository,
-            LoginAttemptRepository>();
-return services;
+        return services;
     }
 }
-
