@@ -20,6 +20,9 @@ public sealed class ConfirmEmailChangeCommandHandler
     private readonly IEmailChangeTokenRepository
         _emailChangeTokenRepository;
 
+    private readonly IAuthSessionRepository
+        _authSessionRepository;
+
     private readonly ITokenHasher
         _tokenHasher;
 
@@ -35,6 +38,7 @@ public sealed class ConfirmEmailChangeCommandHandler
     public ConfirmEmailChangeCommandHandler(
         IUserRepository userRepository,
         IEmailChangeTokenRepository emailChangeTokenRepository,
+        IAuthSessionRepository authSessionRepository,
         ITokenHasher tokenHasher,
         IIntegrationEventPublisher integrationEventPublisher,
         IUnitOfWork unitOfWork,
@@ -49,6 +53,7 @@ public sealed class ConfirmEmailChangeCommandHandler
 
         _userRepository = userRepository;
         _emailChangeTokenRepository = emailChangeTokenRepository;
+        _authSessionRepository = authSessionRepository;
         _tokenHasher = tokenHasher;
         _integrationEventPublisher = integrationEventPublisher;
         _unitOfWork = unitOfWork;
@@ -161,6 +166,24 @@ public sealed class ConfirmEmailChangeCommandHandler
             activeToken.Revoke(now);
         }
 
+        var sessions =
+            await _authSessionRepository
+                .GetByUserIdAsync(
+                    user.Id,
+                    cancellationToken);
+
+        foreach (var session in sessions)
+        {
+            if (!session.IsActive)
+            {
+                continue;
+            }
+
+            session.Revoke(
+                now,
+                "Email address changed.");
+        }
+
         await _integrationEventPublisher
             .PublishAsync(
                 new EmailChangedNotificationRequested(
@@ -177,3 +200,5 @@ public sealed class ConfirmEmailChangeCommandHandler
         return Result.Success();
     }
 }
+
+

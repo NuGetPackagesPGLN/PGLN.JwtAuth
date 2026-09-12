@@ -3,6 +3,7 @@ using PGLN.Auth.Application.Features.ChangeEmail;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.EmailChangeTokens;
 using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Domain.Sessions;
 
 namespace PGLN.Auth.Application.Tests.Features.ChangeEmail;
 
@@ -512,15 +513,161 @@ public sealed class ConfirmEmailChangeCommandHandlerTests
             Now,
             emailChangedEvent.OccurredAtUtc);
     }
+
+    [Fact]
+    public async Task HandleAsync_WithValidToken_ShouldRevokeAllActiveSessions()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var tokens =
+            new FakeEmailChangeTokenRepository();
+
+        tokens.Seed(
+            CreateToken(
+                user.Id));
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var firstSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-001",
+                "Chrome",
+                "192.168.1.10",
+                "Mozilla/5.0",
+                Now.AddDays(-2));
+
+        var secondSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-002",
+                "Edge",
+                "192.168.1.20",
+                "Mozilla/5.0",
+                Now.AddDays(-1));
+
+        sessions.Seed(
+            firstSession);
+
+        sessions.Seed(
+            secondSession);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    tokens,
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    CreateCommand());
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.All(
+            sessions.Sessions,
+            session =>
+            {
+                Assert.True(
+                    session.IsRevoked);
+
+                Assert.Equal(
+                    Now,
+                    session.RevokedAtUtc);
+
+                Assert.Equal(
+                    "Email address changed.",
+                    session.RevocationReason);
+            });
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldLeaveAlreadyRevokedSessionsUnchanged()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var tokens =
+            new FakeEmailChangeTokenRepository();
+
+        tokens.Seed(
+            CreateToken(
+                user.Id));
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var revokedAt =
+            Now.AddHours(-3);
+
+        var session =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-001",
+                "Chrome",
+                "192.168.1.10",
+                "Mozilla/5.0",
+                Now.AddDays(-1));
+
+        session.Revoke(
+            revokedAt,
+            "User logged out.");
+
+        sessions.Seed(
+            session);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    tokens,
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    CreateCommand());
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.True(
+            session.IsRevoked);
+
+        Assert.Equal(
+            revokedAt,
+            session.RevokedAtUtc);
+
+        Assert.Equal(
+            "User logged out.",
+            session.RevocationReason);
+    }
     private static ConfirmEmailChangeCommandHandler CreateHandler(
         FakeUserRepository userRepository,
         FakeEmailChangeTokenRepository emailChangeTokenRepository,
         FakeUnitOfWork? unitOfWork = null,
-        FakeIntegrationEventPublisher? integrationEventPublisher = null)
+        FakeIntegrationEventPublisher? integrationEventPublisher = null,
+        FakeAuthSessionRepository? authSessionRepository = null)
     {
         return new ConfirmEmailChangeCommandHandler(
             userRepository,
             emailChangeTokenRepository,
+            authSessionRepository ??
+                new FakeAuthSessionRepository(),
             new FakeTokenHasher(),
             integrationEventPublisher ??
                 new FakeIntegrationEventPublisher(),
@@ -566,6 +713,10 @@ public sealed class ConfirmEmailChangeCommandHandlerTests
             Now.AddMinutes(25));
     }
 }
+
+
+
+
 
 
 
