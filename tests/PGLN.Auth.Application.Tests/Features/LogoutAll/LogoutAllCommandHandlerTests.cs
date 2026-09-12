@@ -140,6 +140,130 @@ public sealed class LogoutAllCommandHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_ShouldRevokeAllActiveUserSessions()
+    {
+        var userId =
+            UserId.New();
+
+        var refreshTokenRepository =
+            new FakeRefreshTokenRepository();
+
+        var anchor =
+            CreateActiveToken(
+                userId,
+                "hashed::anchor-token");
+
+        refreshTokenRepository.Seed(
+            anchor);
+
+        var sessionRepository =
+            new FakeAuthSessionRepository();
+
+        var firstSession =
+            CreateSession(
+                userId,
+                "device-one");
+
+        var secondSession =
+            CreateSession(
+                userId,
+                "device-two");
+
+        sessionRepository.Seed(
+            firstSession);
+
+        sessionRepository.Seed(
+            secondSession);
+
+        var result =
+            await CreateHandler(
+                    refreshTokenRepository,
+                    authSessionRepository:
+                        sessionRepository)
+                .HandleAsync(
+                    new LogoutAllCommand(
+                        "anchor-token"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.All(
+            new[]
+            {
+                firstSession,
+                secondSession
+            },
+            session =>
+            {
+                Assert.True(
+                    session.IsRevoked);
+
+                Assert.Equal(
+                    Now,
+                    session.RevokedAtUtc);
+
+                Assert.Equal(
+                    "LogoutAll",
+                    session.RevocationReason);
+            });
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldNotRevokeAnotherUsersSessions()
+    {
+        var targetUserId =
+            UserId.New();
+
+        var unrelatedUserId =
+            UserId.New();
+
+        var refreshTokenRepository =
+            new FakeRefreshTokenRepository();
+
+        refreshTokenRepository.Seed(
+            CreateActiveToken(
+                targetUserId,
+                "hashed::anchor-token"));
+
+        var sessionRepository =
+            new FakeAuthSessionRepository();
+
+        var targetSession =
+            CreateSession(
+                targetUserId,
+                "target-device");
+
+        var unrelatedSession =
+            CreateSession(
+                unrelatedUserId,
+                "unrelated-device");
+
+        sessionRepository.Seed(
+            targetSession);
+
+        sessionRepository.Seed(
+            unrelatedSession);
+
+        var result =
+            await CreateHandler(
+                    refreshTokenRepository,
+                    authSessionRepository:
+                        sessionRepository)
+                .HandleAsync(
+                    new LogoutAllCommand(
+                        "anchor-token"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.True(
+            targetSession.IsRevoked);
+
+        Assert.False(
+            unrelatedSession.IsRevoked);
+    }
+
+    [Fact]
     public async Task HandleAsync_WithUnknownToken_ShouldFail()
     {
         var unitOfWork =
@@ -264,13 +388,22 @@ public sealed class LogoutAllCommandHandlerTests
                 userId,
                 "hashed::second-token"));
 
+        var sessionRepository =
+            new FakeAuthSessionRepository();
+
+        sessionRepository.Seed(
+            CreateSession(
+                userId,
+                "device-one"));
+
         var unitOfWork =
             new FakeUnitOfWork();
 
         var result =
             await CreateHandler(
                     repository,
-                    unitOfWork)
+                    unitOfWork,
+                    sessionRepository)
                 .HandleAsync(
                     new LogoutAllCommand(
                         "anchor-token"));
@@ -285,10 +418,13 @@ public sealed class LogoutAllCommandHandlerTests
 
     private static LogoutAllCommandHandler CreateHandler(
         FakeRefreshTokenRepository repository,
-        FakeUnitOfWork? unitOfWork = null)
+        FakeUnitOfWork? unitOfWork = null,
+        FakeAuthSessionRepository? authSessionRepository = null)
     {
         return new LogoutAllCommandHandler(
             repository,
+            authSessionRepository ??
+                new FakeAuthSessionRepository(),
             new FakeTokenHasher(),
             unitOfWork ??
                 new FakeUnitOfWork(),
@@ -309,6 +445,18 @@ public sealed class LogoutAllCommandHandlerTests
             Now.AddDays(-1),
             Now.AddDays(29));
     }
+
+    private static AuthSession CreateSession(
+        UserId userId,
+        string deviceIdHash)
+    {
+        return AuthSession.Create(
+            AuthSessionId.New(),
+            userId,
+            deviceIdHash,
+            "Test Device",
+            "127.0.0.1",
+            "Test User Agent",
+            Now.AddDays(-1));
+    }
 }
-
-

@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
@@ -15,18 +15,23 @@ public sealed class LogoutCommandHandler
         "Logout";
 
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IAuthSessionRepository _authSessionRepository;
     private readonly ITokenHasher _tokenHasher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
     public LogoutCommandHandler(
         IRefreshTokenRepository refreshTokenRepository,
+        IAuthSessionRepository authSessionRepository,
         ITokenHasher tokenHasher,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
         ArgumentNullException.ThrowIfNull(
             refreshTokenRepository);
+
+        ArgumentNullException.ThrowIfNull(
+            authSessionRepository);
 
         ArgumentNullException.ThrowIfNull(
             tokenHasher);
@@ -39,6 +44,9 @@ public sealed class LogoutCommandHandler
 
         _refreshTokenRepository =
             refreshTokenRepository;
+
+        _authSessionRepository =
+            authSessionRepository;
 
         _tokenHasher =
             tokenHasher;
@@ -91,9 +99,25 @@ public sealed class LogoutCommandHandler
             return Result.Success();
         }
 
+        var now =
+            _clock.UtcNow;
+
         refreshToken.Revoke(
-            _clock.UtcNow,
+            now,
             RevocationReason);
+
+        var session =
+            await _authSessionRepository
+                .GetByIdAsync(
+                    refreshToken.SessionId,
+                    cancellationToken);
+
+        if (session is not null)
+        {
+            session.Revoke(
+                now,
+                RevocationReason);
+        }
 
         await _unitOfWork
             .SaveChangesAsync(

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,6 +101,131 @@ public sealed class LogoutAllEndpointHttpTests
             });
     }
 
+    [Fact]
+    public async Task LogoutAll_ShouldImmediatelyInvalidateAllUserAccessTokens()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            application.CreateClient();
+
+        const string email =
+            "invalidate-access-tokens@example.com";
+
+        const string password =
+            "SecretPassword123!";
+
+        await SeedConfirmedUserAsync(
+            application,
+            email,
+            password);
+
+        var firstResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    "first-device",
+                    "First Device"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            firstResponse.StatusCode);
+
+        var firstLogin =
+            await firstResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            firstLogin);
+
+        var secondResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    "second-device",
+                    "Second Device"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            secondResponse.StatusCode);
+
+        var secondLogin =
+            await secondResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            secondLogin);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                firstLogin.AccessToken);
+
+        var firstBeforeLogout =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            firstBeforeLogout.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                secondLogin.AccessToken);
+
+        var secondBeforeLogout =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            secondBeforeLogout.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            null;
+
+        var logoutAll =
+            await client.PostAsJsonAsync(
+                "/api/auth/logout-all",
+                new LogoutAllRequest(
+                    firstLogin.RefreshToken));
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            logoutAll.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                firstLogin.AccessToken);
+
+        var firstAfterLogout =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            firstAfterLogout.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                secondLogin.AccessToken);
+
+        var secondAfterLogout =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            secondAfterLogout.StatusCode);
+    }
     [Fact]
     public async Task LogoutAll_ShouldMakeAllUserRefreshTokensUnusable()
     {
@@ -359,4 +485,5 @@ public sealed class LogoutAllEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
 

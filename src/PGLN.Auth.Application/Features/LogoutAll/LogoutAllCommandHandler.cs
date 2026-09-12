@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
@@ -9,19 +9,27 @@ namespace PGLN.Auth.Application.Features.LogoutAll;
 public sealed class LogoutAllCommandHandler
     : ICommandHandler<LogoutAllCommand, Result>
 {
+    private const string RevocationReason =
+        "LogoutAll";
+
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IAuthSessionRepository _authSessionRepository;
     private readonly ITokenHasher _tokenHasher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
     public LogoutAllCommandHandler(
         IRefreshTokenRepository refreshTokenRepository,
+        IAuthSessionRepository authSessionRepository,
         ITokenHasher tokenHasher,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
         ArgumentNullException.ThrowIfNull(
             refreshTokenRepository);
+
+        ArgumentNullException.ThrowIfNull(
+            authSessionRepository);
 
         ArgumentNullException.ThrowIfNull(
             tokenHasher);
@@ -34,6 +42,9 @@ public sealed class LogoutAllCommandHandler
 
         _refreshTokenRepository =
             refreshTokenRepository;
+
+        _authSessionRepository =
+            authSessionRepository;
 
         _tokenHasher =
             tokenHasher;
@@ -89,6 +100,12 @@ public sealed class LogoutAllCommandHandler
                     anchorToken.UserId,
                     cancellationToken);
 
+        var userSessions =
+            await _authSessionRepository
+                .GetByUserIdAsync(
+                    anchorToken.UserId,
+                    cancellationToken);
+
         var changed =
             false;
 
@@ -101,7 +118,22 @@ public sealed class LogoutAllCommandHandler
 
             refreshToken.Revoke(
                 now,
-                "LogoutAll");
+                RevocationReason);
+
+            changed =
+                true;
+        }
+
+        foreach (var session in userSessions)
+        {
+            if (!session.IsActive)
+            {
+                continue;
+            }
+
+            session.Revoke(
+                now,
+                RevocationReason);
 
             changed =
                 true;

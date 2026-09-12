@@ -1,5 +1,6 @@
 using PGLN.Auth.IntegrationTests.TestHelpers;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -131,6 +132,51 @@ public sealed class LogoutEndpointHttpTests
             body);
     }
 
+    [Fact]
+    public async Task Logout_ShouldImmediatelyInvalidateAccessToken()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            application.CreateClient();
+
+        var login =
+            await LoginAsync(
+                application,
+                client);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                login.AccessToken);
+
+        var beforeLogout =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            beforeLogout.StatusCode);
+
+        var logoutResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/logout",
+                new LogoutRequest(
+                    login.RefreshToken));
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            logoutResponse.StatusCode);
+
+        var afterLogout =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            afterLogout.StatusCode);
+    }
     [Fact]
     public async Task Logout_WithUnknownToken_ShouldReturn204()
     {
@@ -380,6 +426,7 @@ public sealed class LogoutEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
 
 
 
