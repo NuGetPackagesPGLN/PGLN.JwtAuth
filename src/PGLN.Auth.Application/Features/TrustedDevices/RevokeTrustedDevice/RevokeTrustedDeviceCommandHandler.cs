@@ -13,17 +13,25 @@ public sealed class RevokeTrustedDeviceCommandHandler
             "TrustedDevices.NotFound",
             "The requested trusted device was not found.");
 
+    private const string RevocationReason =
+        "UserRevokedTrust";
+
     private readonly ITrustedDeviceRepository _trustedDeviceRepository;
+    private readonly IAuthSessionRepository _authSessionRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
     public RevokeTrustedDeviceCommandHandler(
         ITrustedDeviceRepository trustedDeviceRepository,
+        IAuthSessionRepository authSessionRepository,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
         _trustedDeviceRepository =
             trustedDeviceRepository;
+
+        _authSessionRepository =
+            authSessionRepository;
 
         _unitOfWork =
             unitOfWork;
@@ -49,9 +57,34 @@ public sealed class RevokeTrustedDeviceCommandHandler
                 TrustedDeviceNotFoundError);
         }
 
+        var now =
+            _clock.UtcNow;
+
         trustedDevice.Revoke(
-            _clock.UtcNow,
-            "UserRevokedTrust");
+            now,
+            RevocationReason);
+
+        var sessions =
+            await _authSessionRepository
+                .GetByUserIdAsync(
+                    command.UserId,
+                    cancellationToken);
+
+        foreach (var session in sessions)
+        {
+            if (session.DeviceIdHash !=
+                trustedDevice.DeviceIdHash)
+            {
+                continue;
+            }
+
+            if (!session.IsActive)
+            {
+                continue;
+            }
+
+            session.RevokeDeviceTrust();
+        }
 
         await _unitOfWork
             .SaveChangesAsync(

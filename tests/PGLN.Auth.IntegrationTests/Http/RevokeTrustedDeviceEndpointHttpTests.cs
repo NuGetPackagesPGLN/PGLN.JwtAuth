@@ -81,7 +81,7 @@ public sealed class RevokeTrustedDeviceEndpointHttpTests
     }
 
     [Fact]
-    public async Task RevokeTrustedDevice_ShouldPersistRevocation()
+    public async Task RevokeTrustedDevice_ShouldPersistRevocationAndRemoveTrustFromActiveSession()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
@@ -122,32 +122,63 @@ public sealed class RevokeTrustedDeviceEndpointHttpTests
             HttpStatusCode.NoContent,
             response.StatusCode);
 
-        await using var scope =
+        await using (var scope =
             application.Application.Services
-                .CreateAsyncScope();
+                .CreateAsyncScope())
+        {
+            var dbContext =
+                scope.ServiceProvider
+                    .GetRequiredService<AuthDbContext>();
 
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
+            var persistedDevice =
+                await dbContext.TrustedDevices
+                    .SingleAsync();
 
-        var persistedDevice =
-            await dbContext.TrustedDevices
-                .SingleAsync();
+            Assert.True(
+                persistedDevice.IsRevoked);
 
-        Assert.True(
-            persistedDevice.IsRevoked);
+            Assert.False(
+                persistedDevice.IsTrusted);
 
-        Assert.False(
-            persistedDevice.IsTrusted);
+            Assert.NotNull(
+                persistedDevice.RevokedAtUtc);
 
-        Assert.NotNull(
-            persistedDevice.RevokedAtUtc);
+            Assert.Equal(
+                "UserRevokedTrust",
+                persistedDevice.RevocationReason);
+
+            var session =
+                await dbContext.AuthSessions
+                    .SingleAsync(
+                        session =>
+                            session.DeviceIdHash ==
+                            "device-one");
+
+            Assert.Equal(
+                PGLN.Auth.Domain.Sessions.DeviceTrustStatus.Revoked,
+                session.DeviceTrustStatus);
+
+            Assert.False(
+                session.IsTrustedDevice);
+
+            Assert.False(
+                session.IsRevoked);
+
+            Assert.True(
+                session.IsActive);
+
+            Assert.Null(
+                session.RevokedAtUtc);
+        }
+
+        var authenticatedResponse =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
 
         Assert.Equal(
-            "UserRevokedTrust",
-            persistedDevice.RevocationReason);
+            HttpStatusCode.OK,
+            authenticatedResponse.StatusCode);
     }
-
     [Fact]
     public async Task RevokeTrustedDevice_WhenDeviceDoesNotExist_ShouldReturn404()
     {
@@ -354,3 +385,4 @@ public sealed class RevokeTrustedDeviceEndpointHttpTests
         return user;
     }
 }
+

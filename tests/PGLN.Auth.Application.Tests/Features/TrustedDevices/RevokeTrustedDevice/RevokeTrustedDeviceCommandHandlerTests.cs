@@ -1,5 +1,6 @@
 using PGLN.Auth.Application.Features.TrustedDevices.RevokeTrustedDevice;
 using PGLN.Auth.Application.Tests.TestDoubles;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Users;
 
@@ -67,6 +68,175 @@ public sealed class RevokeTrustedDeviceCommandHandlerTests
         Assert.Equal(
             1,
             unitOfWork.SaveChangesCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithMatchingActiveSession_ShouldRevokeSessionTrust()
+    {
+        var userId =
+            UserId.New();
+
+        var trustedDevice =
+            CreateTrustedDevice(
+                userId);
+
+        var trustedDeviceRepository =
+            new FakeTrustedDeviceRepository();
+
+        trustedDeviceRepository.Seed(
+            trustedDevice);
+
+        var session =
+            CreateSession(
+                userId,
+                "device-hash-001");
+
+        session.TrustDevice();
+
+        var authSessionRepository =
+            new FakeAuthSessionRepository();
+
+        authSessionRepository.Seed(
+            session);
+
+        var unitOfWork =
+            new FakeUnitOfWork();
+
+        var handler =
+            CreateHandler(
+                trustedDeviceRepository,
+                unitOfWork,
+                authSessionRepository);
+
+        var result =
+            await handler.HandleAsync(
+                new RevokeTrustedDeviceCommand(
+                    userId,
+                    trustedDevice.Id));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            DeviceTrustStatus.Revoked,
+            session.DeviceTrustStatus);
+
+        Assert.False(
+            session.IsTrustedDevice);
+
+        Assert.True(
+            session.IsActive);
+
+        Assert.False(
+            session.IsRevoked);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithDifferentDeviceSession_ShouldLeaveSessionTrustUnchanged()
+    {
+        var userId =
+            UserId.New();
+
+        var trustedDevice =
+            CreateTrustedDevice(
+                userId);
+
+        var trustedDeviceRepository =
+            new FakeTrustedDeviceRepository();
+
+        trustedDeviceRepository.Seed(
+            trustedDevice);
+
+        var differentSession =
+            CreateSession(
+                userId,
+                "different-device-hash");
+
+        differentSession.TrustDevice();
+
+        var authSessionRepository =
+            new FakeAuthSessionRepository();
+
+        authSessionRepository.Seed(
+            differentSession);
+
+        var handler =
+            CreateHandler(
+                trustedDeviceRepository,
+                new FakeUnitOfWork(),
+                authSessionRepository);
+
+        var result =
+            await handler.HandleAsync(
+                new RevokeTrustedDeviceCommand(
+                    userId,
+                    trustedDevice.Id));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            DeviceTrustStatus.Trusted,
+            differentSession.DeviceTrustStatus);
+
+        Assert.True(
+            differentSession.IsTrustedDevice);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithMatchingRevokedSession_ShouldLeaveSessionTrustUnchanged()
+    {
+        var userId =
+            UserId.New();
+
+        var trustedDevice =
+            CreateTrustedDevice(
+                userId);
+
+        var trustedDeviceRepository =
+            new FakeTrustedDeviceRepository();
+
+        trustedDeviceRepository.Seed(
+            trustedDevice);
+
+        var revokedSession =
+            CreateSession(
+                userId,
+                "device-hash-001");
+
+        revokedSession.TrustDevice();
+
+        revokedSession.Revoke(
+            Now.AddHours(-1),
+            "Logout");
+
+        var authSessionRepository =
+            new FakeAuthSessionRepository();
+
+        authSessionRepository.Seed(
+            revokedSession);
+
+        var handler =
+            CreateHandler(
+                trustedDeviceRepository,
+                new FakeUnitOfWork(),
+                authSessionRepository);
+
+        var result =
+            await handler.HandleAsync(
+                new RevokeTrustedDeviceCommand(
+                    userId,
+                    trustedDevice.Id));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            DeviceTrustStatus.Trusted,
+            revokedSession.DeviceTrustStatus);
+
+        Assert.True(
+            revokedSession.IsRevoked);
     }
 
     [Fact]
@@ -207,10 +377,13 @@ public sealed class RevokeTrustedDeviceCommandHandlerTests
 
     private static RevokeTrustedDeviceCommandHandler CreateHandler(
         FakeTrustedDeviceRepository repository,
-        FakeUnitOfWork unitOfWork)
+        FakeUnitOfWork unitOfWork,
+        FakeAuthSessionRepository? authSessionRepository = null)
     {
         return new RevokeTrustedDeviceCommandHandler(
             repository,
+            authSessionRepository ??
+                new FakeAuthSessionRepository(),
             unitOfWork,
             new FakeClock(Now));
     }
@@ -224,5 +397,19 @@ public sealed class RevokeTrustedDeviceCommandHandlerTests
             "device-hash-001",
             "Test Device",
             Now.AddDays(-7));
+    }
+
+    private static AuthSession CreateSession(
+        UserId userId,
+        string deviceIdHash)
+    {
+        return AuthSession.Create(
+            AuthSessionId.New(),
+            userId,
+            deviceIdHash,
+            "Test Device",
+            "127.0.0.1",
+            "Unit Test",
+            Now.AddDays(-1));
     }
 }
