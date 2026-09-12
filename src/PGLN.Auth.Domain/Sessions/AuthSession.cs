@@ -40,6 +40,9 @@ public sealed class AuthSession
 
         LastSeenAtUtc =
             createdAtUtc;
+
+        DeviceTrustStatus =
+            DeviceTrustStatus.Unknown;
     }
 
     public AuthSessionId Id { get; private set; }
@@ -63,11 +66,17 @@ public sealed class AuthSession
 
     public string? RevocationReason { get; private set; }
 
+    public DeviceTrustStatus DeviceTrustStatus { get; private set; }
+
     public bool IsRevoked =>
         RevokedAtUtc.HasValue;
 
     public bool IsActive =>
         !IsRevoked;
+
+    public bool IsTrustedDevice =>
+        DeviceTrustStatus ==
+        DeviceTrustStatus.Trusted;
 
     public static AuthSession Create(
         AuthSessionId id,
@@ -124,6 +133,23 @@ public sealed class AuthSession
             UserAgent =
                 userAgent;
         }
+    }
+
+    public void TrustDevice()
+    {
+        if (IsRevoked)
+        {
+            return;
+        }
+
+        DeviceTrustStatus =
+            DeviceTrustStatus.Trusted;
+    }
+
+    public void RevokeDeviceTrust()
+    {
+        DeviceTrustStatus =
+            DeviceTrustStatus.Revoked;
     }
 
     public void Revoke(

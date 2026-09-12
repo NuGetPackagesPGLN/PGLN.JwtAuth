@@ -129,6 +129,13 @@ public sealed class AuthSessionConfiguration
                 256);
 
         builder
+            .Property(
+                session =>
+                    session.DeviceTrustStatus)
+            .HasConversion<int>()
+            .IsRequired();
+
+        builder
             .HasIndex(
                 session =>
                     session.UserId);
@@ -158,5 +165,10 @@ public sealed class AuthSessionConfiguration
         builder.Ignore(
             session =>
                 session.IsActive);
+
+        builder.Ignore(
+            session =>
+                session.IsTrustedDevice);
     }
 }
+

@@ -1,15 +1,15 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using PGLN.Auth.Domain.Sessions;
+using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 
 namespace PGLN.Auth.IntegrationTests.Persistence;
 
-public sealed class AuthSessionPersistenceTests
+public sealed class TrustedDevicePersistenceTests
 {
     [Fact]
-    public async Task AuthSession_ShouldPersistAndReload()
+    public async Task TrustedDevice_ShouldPersistAndReload()
     {
         await using var connection =
             new SqliteConnection(
@@ -31,117 +31,14 @@ public sealed class AuthSessionPersistenceTests
             .EnsureCreatedAsync();
 
         var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    "session@example.com"),
-                "hashed-password",
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        var session =
-            AuthSession.Create(
-                AuthSessionId.New(),
-                user.Id,
-                "device-hash-123",
-                "Chrome on Windows",
-                "127.0.0.1",
-                "Mozilla/5.0",
-                now);
-
-        dbContext.Users.Add(
-            user);
-
-        dbContext.AuthSessions.Add(
-            session);
-
-        await dbContext.SaveChangesAsync();
-
-        dbContext.ChangeTracker.Clear();
-
-        var persistedSession =
-            await dbContext.AuthSessions
-                .SingleAsync(
-                    item =>
-                        item.Id ==
-                        session.Id);
-
-        Assert.Equal(
-            session.Id,
-            persistedSession.Id);
-
-        Assert.Equal(
-            user.Id,
-            persistedSession.UserId);
-
-        Assert.Equal(
-            "device-hash-123",
-            persistedSession.DeviceIdHash);
-
-        Assert.Equal(
-            "Chrome on Windows",
-            persistedSession.DeviceName);
-
-        Assert.Equal(
-            "127.0.0.1",
-            persistedSession.IpAddress);
-
-        Assert.Equal(
-            "Mozilla/5.0",
-            persistedSession.UserAgent);
-
-        Assert.Equal(
-            now.ToUnixTimeMilliseconds(),
-            persistedSession.CreatedAtUtc
-                .ToUnixTimeMilliseconds());
-
-        Assert.Equal(
-            now.ToUnixTimeMilliseconds(),
-            persistedSession.LastSeenAtUtc
-                .ToUnixTimeMilliseconds());
-
-        Assert.Equal(
-            DeviceTrustStatus.Unknown,
-            persistedSession.DeviceTrustStatus);
-
-        Assert.False(
-            persistedSession.IsTrustedDevice);
-
-        Assert.False(
-            persistedSession.IsRevoked);
-
-        Assert.True(
-            persistedSession.IsActive);
-    }
-
-    [Fact]
-    public async Task TrustedDeviceStatus_ShouldPersistAndReload()
-    {
-        await using var connection =
-            new SqliteConnection(
-                "Data Source=:memory:");
-
-        await connection.OpenAsync();
-
-        var options =
-            new DbContextOptionsBuilder<AuthDbContext>()
-                .UseSqlite(
-                    connection)
-                .Options;
-
-        await using var dbContext =
-            new AuthDbContext(
-                options);
-
-        await dbContext.Database
-            .EnsureCreatedAsync();
-
-        var now =
-            DateTimeOffset.UtcNow;
+            new DateTimeOffset(
+                2026,
+                9,
+                12,
+                12,
+                0,
+                0,
+                TimeSpan.Zero);
 
         var user =
             User.Register(
@@ -153,40 +50,147 @@ public sealed class AuthSessionPersistenceTests
 
         user.ClearDomainEvents();
 
-        var session =
-            AuthSession.Create(
-                AuthSessionId.New(),
+        var trustedDevice =
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
                 user.Id,
-                "trusted-device-hash",
+                "device-hash-123",
                 "Chrome on Windows",
-                "127.0.0.1",
-                "Mozilla/5.0",
                 now);
-
-        session.TrustDevice();
 
         dbContext.Users.Add(
             user);
 
-        dbContext.AuthSessions.Add(
-            session);
+        dbContext.TrustedDevices.Add(
+            trustedDevice);
 
         await dbContext.SaveChangesAsync();
 
         dbContext.ChangeTracker.Clear();
 
-        var persistedSession =
-            await dbContext.AuthSessions
+        var persistedDevice =
+            await dbContext.TrustedDevices
                 .SingleAsync(
-                    item =>
-                        item.Id ==
-                        session.Id);
+                    device =>
+                        device.Id ==
+                        trustedDevice.Id);
 
         Assert.Equal(
-            DeviceTrustStatus.Trusted,
-            persistedSession.DeviceTrustStatus);
+            trustedDevice.Id,
+            persistedDevice.Id);
+
+        Assert.Equal(
+            user.Id,
+            persistedDevice.UserId);
+
+        Assert.Equal(
+            "device-hash-123",
+            persistedDevice.DeviceIdHash);
+
+        Assert.Equal(
+            "Chrome on Windows",
+            persistedDevice.DeviceName);
+
+        Assert.Equal(
+            now.ToUnixTimeMilliseconds(),
+            persistedDevice.TrustedAtUtc
+                .ToUnixTimeMilliseconds());
+
+        Assert.False(
+            persistedDevice.IsRevoked);
 
         Assert.True(
-            persistedSession.IsTrustedDevice);
+            persistedDevice.IsTrusted);
+    }
+
+    [Fact]
+    public async Task RevokedTrustedDevice_ShouldPersistAndReload()
+    {
+        await using var connection =
+            new SqliteConnection(
+                "Data Source=:memory:");
+
+        await connection.OpenAsync();
+
+        var options =
+            new DbContextOptionsBuilder<AuthDbContext>()
+                .UseSqlite(
+                    connection)
+                .Options;
+
+        await using var dbContext =
+            new AuthDbContext(
+                options);
+
+        await dbContext.Database
+            .EnsureCreatedAsync();
+
+        var trustedAtUtc =
+            new DateTimeOffset(
+                2026,
+                9,
+                12,
+                12,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        var revokedAtUtc =
+            trustedAtUtc.AddHours(1);
+
+        var user =
+            User.Register(
+                UserId.New(),
+                Email.Create(
+                    "revoked-device@example.com"),
+                "hashed-password",
+                trustedAtUtc.AddDays(-1));
+
+        user.ClearDomainEvents();
+
+        var trustedDevice =
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "revoked-device-hash",
+                "Firefox on Linux",
+                trustedAtUtc);
+
+        trustedDevice.Revoke(
+            revokedAtUtc,
+            "UserRevokedTrust");
+
+        dbContext.Users.Add(
+            user);
+
+        dbContext.TrustedDevices.Add(
+            trustedDevice);
+
+        await dbContext.SaveChangesAsync();
+
+        dbContext.ChangeTracker.Clear();
+
+        var persistedDevice =
+            await dbContext.TrustedDevices
+                .SingleAsync(
+                    device =>
+                        device.Id ==
+                        trustedDevice.Id);
+
+        Assert.True(
+            persistedDevice.IsRevoked);
+
+        Assert.False(
+            persistedDevice.IsTrusted);
+
+        Assert.Equal(
+            revokedAtUtc.ToUnixTimeMilliseconds(),
+            persistedDevice.RevokedAtUtc!
+                .Value
+                .ToUnixTimeMilliseconds());
+
+        Assert.Equal(
+            "UserRevokedTrust",
+            persistedDevice.RevocationReason);
     }
 }

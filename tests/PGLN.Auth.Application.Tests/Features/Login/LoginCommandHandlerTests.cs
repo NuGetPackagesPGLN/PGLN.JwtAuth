@@ -1,3 +1,4 @@
+using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Features.Login;
@@ -1203,6 +1204,227 @@ public sealed class LoginCommandHandlerTests
         Assert.False(
             newSession.IsRevoked);
     }
+    [Fact]
+    public async Task HandleAsync_WhenDeviceWasPreviouslyTrusted_ShouldTrustNewSession()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var revokedSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-trusted",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-5));
+
+        revokedSession.Revoke(
+            Now.AddDays(-1),
+            "UserLoggedOut");
+
+        sessions.Seed(
+            revokedSession);
+
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        var trustedDevice =
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-trusted",
+                "Chrome on Windows",
+                Now.AddDays(-10));
+
+        trustedDevices.Seed(
+            trustedDevice);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    new FakeRefreshTokenRepository(),
+                    new FakeAccessTokenGenerator(),
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository: sessions,
+                    trustedDeviceRepository: trustedDevices)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-trusted",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "Chrome/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            2,
+            sessions.Sessions.Count);
+
+        var newSession =
+            sessions.Sessions.Single(
+                session =>
+                    session.Id != revokedSession.Id);
+
+        Assert.True(
+            newSession.IsTrustedDevice);
+
+        Assert.Equal(
+            DeviceTrustStatus.Trusted,
+            newSession.DeviceTrustStatus);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenTrustedDeviceWasRevoked_ShouldNotTrustNewSession()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var revokedSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-revoked",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-5));
+
+        revokedSession.Revoke(
+            Now.AddDays(-1),
+            "UserLoggedOut");
+
+        sessions.Seed(
+            revokedSession);
+
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        var trustedDevice =
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-revoked",
+                "Chrome on Windows",
+                Now.AddDays(-10));
+
+        trustedDevice.Revoke(
+            Now.AddDays(-2),
+            "UserRevokedTrust");
+
+        trustedDevices.Seed(
+            trustedDevice);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    new FakeRefreshTokenRepository(),
+                    new FakeAccessTokenGenerator(),
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository: sessions,
+                    trustedDeviceRepository: trustedDevices)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-revoked",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "Chrome/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            2,
+            sessions.Sessions.Count);
+
+        var newSession =
+            sessions.Sessions.Single(
+                session =>
+                    session.Id != revokedSession.Id);
+
+        Assert.False(
+            newSession.IsTrustedDevice);
+
+        Assert.Equal(
+            DeviceTrustStatus.Unknown,
+            newSession.DeviceTrustStatus);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenDeviceIsNotTrusted_ShouldLeaveSessionTrustUnknown()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    new FakeRefreshTokenRepository(),
+                    new FakeAccessTokenGenerator(),
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository: sessions,
+                    trustedDeviceRepository:
+                        new FakeTrustedDeviceRepository())
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-untrusted",
+                        "Safari on iPhone",
+                        "192.168.1.50",
+                        "Safari/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var session =
+            Assert.Single(
+                sessions.Sessions);
+
+        Assert.False(
+            session.IsTrustedDevice);
+
+        Assert.Equal(
+            DeviceTrustStatus.Unknown,
+            session.DeviceTrustStatus);
+    }
     private static LoginCommandHandler CreateHandler(
         FakeUserRepository userRepository,
         FakeLoginAttemptRepository loginAttemptRepository,
@@ -1210,6 +1432,7 @@ public sealed class LoginCommandHandlerTests
         FakeAccessTokenGenerator accessTokenGenerator,
         FakeRefreshTokenGenerator refreshTokenGenerator,
         FakeAuthSessionRepository? authSessionRepository = null,
+        FakeTrustedDeviceRepository? trustedDeviceRepository = null,
         FakeLoginPasswordHasher? passwordHasher = null,
         FakeIntegrationEventPublisher? integrationEventPublisher = null,
         FakeUnitOfWork? unitOfWork = null,
@@ -1222,6 +1445,8 @@ public sealed class LoginCommandHandlerTests
             refreshTokenRepository,
             authSessionRepository ??
                 new FakeAuthSessionRepository(),
+            trustedDeviceRepository ??
+                new FakeTrustedDeviceRepository(),
             passwordHasher ??
                 new FakeLoginPasswordHasher(),
             accessTokenGenerator,
@@ -1585,6 +1810,12 @@ public sealed class LoginCommandHandlerTests
             refreshToken.SessionId,
             accessTokenGenerator.LastSessionId);
     }}
+
+
+
+
+
+
 
 
 

@@ -5,6 +5,7 @@ using PGLN.Auth.AspNetCore.Endpoints.ChangeEmail;
 using PGLN.Auth.AspNetCore.Endpoints.EmailConfirmation;
 using PGLN.Auth.AspNetCore.Endpoints.Registration;
 using PGLN.Auth.AspNetCore.Endpoints.Sessions;
+using PGLN.Auth.AspNetCore.Endpoints.TrustedDevices;
 
 namespace PGLN.Auth.AspNetCore.Endpoints;
 
@@ -55,6 +56,14 @@ public static class AuthEndpointRouteBuilderExtensions
 
         group.MapRevokeOtherSessionsEndpoint();
 
+        group.MapTrustCurrentDeviceEndpoint();
+
+        group.MapGetTrustedDevicesEndpoint();
+
+        group.MapRevokeTrustedDeviceEndpoint();
+
         return group;
     }
 }
+
+

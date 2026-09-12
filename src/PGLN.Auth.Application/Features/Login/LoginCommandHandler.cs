@@ -21,6 +21,7 @@ public sealed class LoginCommandHandler
     private readonly ILoginAttemptRepository _loginAttemptRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IAuthSessionRepository _authSessionRepository;
+    private readonly ITrustedDeviceRepository _trustedDeviceRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAccessTokenGenerator _accessTokenGenerator;
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
@@ -39,6 +40,7 @@ public sealed class LoginCommandHandler
         ILoginAttemptRepository loginAttemptRepository,
         IRefreshTokenRepository refreshTokenRepository,
         IAuthSessionRepository authSessionRepository,
+        ITrustedDeviceRepository trustedDeviceRepository,
         IPasswordHasher passwordHasher,
         IAccessTokenGenerator accessTokenGenerator,
         IRefreshTokenGenerator refreshTokenGenerator,
@@ -54,6 +56,7 @@ public sealed class LoginCommandHandler
         ArgumentNullException.ThrowIfNull(loginAttemptRepository);
         ArgumentNullException.ThrowIfNull(refreshTokenRepository);
         ArgumentNullException.ThrowIfNull(authSessionRepository);
+        ArgumentNullException.ThrowIfNull(trustedDeviceRepository);
         ArgumentNullException.ThrowIfNull(passwordHasher);
         ArgumentNullException.ThrowIfNull(accessTokenGenerator);
         ArgumentNullException.ThrowIfNull(refreshTokenGenerator);
@@ -73,6 +76,7 @@ public sealed class LoginCommandHandler
         _loginAttemptRepository = loginAttemptRepository;
         _refreshTokenRepository = refreshTokenRepository;
         _authSessionRepository = authSessionRepository;
+        _trustedDeviceRepository = trustedDeviceRepository;
         _passwordHasher = passwordHasher;
         _accessTokenGenerator = accessTokenGenerator;
         _refreshTokenGenerator = refreshTokenGenerator;
@@ -225,6 +229,13 @@ public sealed class LoginCommandHandler
         var isNewDevice =
             !hasSeenDevice;
 
+        var trustedDevice =
+            await _trustedDeviceRepository
+                .GetByUserAndDeviceHashAsync(
+                    user.Id,
+                    command.DeviceIdHash,
+                    cancellationToken);
+
         var session =
             await _authSessionRepository
                 .GetActiveByDeviceIdHashAsync(
@@ -255,6 +266,12 @@ public sealed class LoginCommandHandler
                 now,
                 command.IpAddress,
                 command.UserAgent);
+        }
+
+        if (trustedDevice is not null &&
+            trustedDevice.IsTrusted)
+        {
+            session.TrustDevice();
         }
 
         var rawRefreshToken =
@@ -349,6 +366,8 @@ public sealed class LoginCommandHandler
             cancellationToken);
     }
 }
+
+
 
 
 
