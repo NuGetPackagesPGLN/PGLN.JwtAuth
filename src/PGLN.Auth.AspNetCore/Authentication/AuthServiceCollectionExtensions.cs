@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.AspNetCore.RateLimiting;
+using PGLN.Auth.Domain.Sessions;
 using System.Threading.RateLimiting;
 
 namespace PGLN.Auth.AspNetCore.Authentication;
@@ -85,6 +87,68 @@ public static class AuthServiceCollectionExtensions
                             ClockSkew =
                                 TimeSpan.Zero
                         };
+
+                    options.Events =
+                        new JwtBearerEvents
+                        {
+                            OnTokenValidated =
+                                async context =>
+                                {
+                                    var sessionIdValue =
+                                        context.Principal?
+                                            .FindFirst(
+                                                "sid")?
+                                            .Value;
+
+                                    if (string.IsNullOrWhiteSpace(
+                                            sessionIdValue))
+                                    {
+                                        context.Fail(
+                                            "Access token does not contain a session id.");
+
+                                        return;
+                                    }
+
+                                    if (!Guid.TryParse(
+                                            sessionIdValue,
+                                            out var sessionIdGuid))
+                                    {
+                                        context.Fail(
+                                            "Access token contains an invalid session id.");
+
+                                        return;
+                                    }
+
+                                    var sessionRepository =
+                                        context.HttpContext
+                                            .RequestServices
+                                            .GetRequiredService<IAuthSessionRepository>();
+
+                                    var session =
+                                        await sessionRepository
+                                            .GetByIdAsync(
+                                                new AuthSessionId(
+                                                    sessionIdGuid),
+                                                context.HttpContext
+                                                    .RequestAborted);
+
+                                    if (session is null)
+                                    {
+                                        context.Fail(
+                                            "Authentication session does not exist.");
+
+                                        return;
+                                    }
+
+                                    if (!session.IsActive)
+                                    {
+                                        context.Fail(
+                                            "Authentication session has been revoked.");
+
+                                        return;
+                                    }
+                                }
+                        };
                 });
 
         services.AddAuthorization();
@@ -140,5 +204,3 @@ public static class AuthServiceCollectionExtensions
         return services;
     }
 }
-
-
