@@ -10,6 +10,11 @@ public interface IEmailTemplateRenderer
         string email,
         string verificationUrl);
 
+    EmailMessage RenderEmailChangedNotification(
+        string oldEmail,
+        string newEmail,
+        DateTimeOffset changedAtUtc);
+
     EmailMessage RenderWelcomeEmail(
         string email);
 

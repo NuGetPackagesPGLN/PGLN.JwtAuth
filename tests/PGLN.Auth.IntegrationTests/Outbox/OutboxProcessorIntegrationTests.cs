@@ -869,6 +869,119 @@ public sealed class OutboxProcessorIntegrationTests
             email.HtmlBody,
             StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task ProcessAsync_WithEmailChangedNotification_ShouldSendEmailToOldAddressAndMarkMessageProcessed()
+    {
+        await using var connection =
+            await CreateOpenConnectionAsync();
+
+        var options =
+            CreateOptions(connection);
+
+        await using var dbContext =
+            new AuthDbContext(options);
+
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var protector =
+            new TestPayloadProtector();
+
+        var emailSender =
+            new TestEmailSender();
+
+        using var serviceProvider =
+            CreateServiceProvider(
+                emailSender);
+
+        var dispatcher =
+            new IntegrationEventDispatcher(
+                serviceProvider);
+
+        var publisher =
+            new OutboxIntegrationEventPublisher(
+                dbContext,
+                protector);
+
+        var integrationEvent =
+            new EmailChangedNotificationRequested(
+                Guid.NewGuid(),
+                UserId.New(),
+                "old@example.com",
+                "new@example.com",
+                Now);
+
+        await publisher.PublishAsync(
+            integrationEvent);
+
+        await dbContext.SaveChangesAsync();
+
+        var storedMessage =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.False(
+            storedMessage.IsProcessed);
+
+        var processor =
+            new OutboxProcessor(
+                dbContext,
+                protector,
+                new IntegrationEventTypeRegistry(),
+                dispatcher,
+                new TestClock(Now),
+                ProcessingOptions);
+
+        var processed =
+            await processor.ProcessAsync(
+                "integration-test-worker");
+
+        Assert.Equal(
+            1,
+            processed);
+
+        var processedMessage =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.True(
+            processedMessage.IsProcessed);
+
+        Assert.Equal(
+            Now,
+            processedMessage.ProcessedAtUtc);
+
+        Assert.Equal(
+            1,
+            processedMessage.AttemptCount);
+
+        Assert.Null(
+            processedMessage.LastError);
+
+        var email =
+            Assert.Single(
+                emailSender.Messages);
+
+        Assert.Equal(
+            "old@example.com",
+            email.To);
+
+        Assert.Equal(
+            "Your email address was changed",
+            email.Subject);
+
+        Assert.Contains(
+            "old@example.com",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "new@example.com",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+    }
     private static ServiceProvider CreateServiceProvider(
         TestEmailSender sender)
     {
@@ -900,6 +1013,10 @@ public sealed class OutboxProcessorIntegrationTests
         services.AddTransient<
             IIntegrationEventHandler<EmailChangeConfirmationRequested>,
             EmailChangeConfirmationRequestedHandler>();
+
+        services.AddTransient<
+            IIntegrationEventHandler<EmailChangedNotificationRequested>,
+            EmailChangedNotificationRequestedHandler>();
 
         services.AddTransient<
             IIntegrationEventHandler<WelcomeEmailRequested>,
@@ -958,6 +1075,8 @@ public sealed class OutboxProcessorIntegrationTests
         }
     }
 }
+
+
 
 
 

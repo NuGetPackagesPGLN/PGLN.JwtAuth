@@ -83,5 +83,17 @@ internal sealed class TestEmailTemplateRenderer
             $"<p>{occurredAtUtc:O} | {lockedUntilUtc:O}</p>",
             $"{occurredAtUtc:O} | {lockedUntilUtc:O}");
     }
-}
+
+    public EmailMessage RenderEmailChangedNotification(
+        string oldEmail,
+        string newEmail,
+        DateTimeOffset changedAtUtc)
+    {
+        return new EmailMessage(
+            oldEmail,
+            "Your email address was changed",
+            $"<p>{oldEmail} -> {newEmail}</p>",
+            $"{oldEmail} -> {newEmail}");
+    }}
+
 

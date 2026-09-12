@@ -96,6 +96,20 @@ public sealed class User : AggregateRoot<UserId>
                 confirmedAtUtc));
     }
 
+    public void ConfirmEmailChange(
+        Email newEmail,
+        DateTimeOffset confirmedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(newEmail);
+
+        Email = newEmail;
+        _normalizedEmail =
+            newEmail.NormalizedValue;
+
+        EmailConfirmed = true;
+        EmailConfirmedAtUtc =
+            confirmedAtUtc;
+    }
     public void RecordFailedLoginAttempt(
         DateTimeOffset attemptedAtUtc)
     {
@@ -138,4 +152,5 @@ public sealed class User : AggregateRoot<UserId>
                 changedAtUtc));
     }
 }
+
 

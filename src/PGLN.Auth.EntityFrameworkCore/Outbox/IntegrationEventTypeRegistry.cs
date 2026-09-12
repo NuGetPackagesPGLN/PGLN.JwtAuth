@@ -14,6 +14,7 @@ public sealed class IntegrationEventTypeRegistry
             {
                 typeof(EmailConfirmationRequested),
                 typeof(EmailChangeConfirmationRequested),
+            typeof(EmailChangedNotificationRequested),
                 typeof(WelcomeEmailRequested),
                 typeof(PasswordResetRequested),
                 typeof(PasswordChangedNotificationRequested),
@@ -48,3 +49,4 @@ public sealed class IntegrationEventTypeRegistry
         return eventType;
     }
 }
+

@@ -532,7 +532,76 @@ public sealed class DefaultEmailTemplateRenderer
             htmlBody,
             textBody);
     }
-}
+
+    public EmailMessage RenderEmailChangedNotification(
+        string oldEmail,
+        string newEmail,
+        DateTimeOffset changedAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            oldEmail);
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            newEmail);
+
+        var subject =
+            "Your email address was changed";
+
+        var textBody =
+            $"""
+            Your account email address was changed.
+
+            Previous email:
+            {oldEmail}
+
+            New email:
+            {newEmail}
+
+            Changed at:
+            {changedAtUtc:O}
+
+            If you made this change, no action is required.
+
+            If you did not make this change, secure your account immediately.
+            """;
+
+        var htmlBody =
+            $"""
+            <p>Your account email address was changed.</p>
+
+            <p>
+                <strong>Previous email:</strong><br />
+                {System.Net.WebUtility.HtmlEncode(oldEmail)}
+            </p>
+
+            <p>
+                <strong>New email:</strong><br />
+                {System.Net.WebUtility.HtmlEncode(newEmail)}
+            </p>
+
+            <p>
+                <strong>Changed at:</strong><br />
+                {changedAtUtc:O}
+            </p>
+
+            <p>
+                If you made this change, no action is required.
+            </p>
+
+            <p>
+                <strong>
+                    If you did not make this change, secure your account immediately.
+                </strong>
+            </p>
+            """;
+
+        return new EmailMessage(
+            oldEmail,
+            subject,
+            htmlBody,
+            textBody);
+    }}
+
 
 
 
