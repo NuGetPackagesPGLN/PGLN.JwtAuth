@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
@@ -15,6 +15,9 @@ public sealed class ResetPasswordCommandHandler
     private const string RefreshTokenRevocationReason =
         "PasswordReset";
 
+    private const string SessionRevocationReason =
+        "Password reset.";
+
     private readonly IUserRepository _userRepository;
 
     private readonly IPasswordResetTokenRepository
@@ -22,6 +25,9 @@ public sealed class ResetPasswordCommandHandler
 
     private readonly IRefreshTokenRepository
         _refreshTokenRepository;
+
+    private readonly IAuthSessionRepository
+        _authSessionRepository;
 
     private readonly IPasswordHasher
         _passwordHasher;
@@ -39,6 +45,7 @@ public sealed class ResetPasswordCommandHandler
         IUserRepository userRepository,
         IPasswordResetTokenRepository passwordResetTokenRepository,
         IRefreshTokenRepository refreshTokenRepository,
+        IAuthSessionRepository authSessionRepository,
         IPasswordHasher passwordHasher,
         ITokenHasher tokenHasher,
         IUnitOfWork unitOfWork,
@@ -52,6 +59,9 @@ public sealed class ResetPasswordCommandHandler
 
         ArgumentNullException.ThrowIfNull(
             refreshTokenRepository);
+
+        ArgumentNullException.ThrowIfNull(
+            authSessionRepository);
 
         ArgumentNullException.ThrowIfNull(
             passwordHasher);
@@ -73,6 +83,9 @@ public sealed class ResetPasswordCommandHandler
 
         _refreshTokenRepository =
             refreshTokenRepository;
+
+        _authSessionRepository =
+            authSessionRepository;
 
         _passwordHasher =
             passwordHasher;
@@ -184,6 +197,29 @@ public sealed class ResetPasswordCommandHandler
                 RefreshTokenRevocationReason);
         }
 
+        //
+        // Keep authentication session state consistent with
+        // refresh-token revocation. A password reset should
+        // invalidate every authenticated device/session.
+        //
+        var sessions =
+            await _authSessionRepository
+                .GetByUserIdAsync(
+                    user.Id,
+                    cancellationToken);
+
+        foreach (var session in sessions)
+        {
+            if (!session.IsActive)
+            {
+                continue;
+            }
+
+            session.Revoke(
+                now,
+                SessionRevocationReason);
+        }
+
         await _unitOfWork
             .SaveChangesAsync(
                 cancellationToken);
@@ -191,3 +227,4 @@ public sealed class ResetPasswordCommandHandler
         return Result.Success();
     }
 }
+

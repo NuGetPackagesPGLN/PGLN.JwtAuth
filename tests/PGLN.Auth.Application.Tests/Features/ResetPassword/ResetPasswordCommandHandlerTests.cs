@@ -638,10 +638,154 @@ public sealed class ResetPasswordCommandHandlerTests
             unitOfWork.SaveChangesCallCount);
     }
 
+
+    [Fact]
+    public async Task HandleAsync_WithValidRequest_ShouldRevokeAllActiveSessions()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var resetTokens =
+            new FakePasswordResetTokenRepository();
+
+        resetTokens.Seed(
+            CreateResetToken(
+                user.Id));
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var firstSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-001",
+                "Chrome",
+                "192.168.1.10",
+                "Mozilla/5.0",
+                Now.AddDays(-2));
+
+        var secondSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-002",
+                "Edge",
+                "192.168.1.20",
+                "Mozilla/5.0",
+                Now.AddDays(-1));
+
+        sessions.Seed(
+            firstSession);
+
+        sessions.Seed(
+            secondSession);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    resetTokens,
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    CreateCommand());
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.All(
+            sessions.Sessions,
+            session =>
+            {
+                Assert.True(
+                    session.IsRevoked);
+
+                Assert.Equal(
+                    Now,
+                    session.RevokedAtUtc);
+
+                Assert.Equal(
+                    "Password reset.",
+                    session.RevocationReason);
+            });
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldLeaveAlreadyRevokedSessionsUnchanged()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var resetTokens =
+            new FakePasswordResetTokenRepository();
+
+        resetTokens.Seed(
+            CreateResetToken(
+                user.Id));
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var revokedAt =
+            Now.AddHours(-4);
+
+        var session =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-001",
+                "Chrome",
+                "192.168.1.10",
+                "Mozilla/5.0",
+                Now.AddDays(-1));
+
+        session.Revoke(
+            revokedAt,
+            "User logged out.");
+
+        sessions.Seed(
+            session);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    resetTokens,
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    CreateCommand());
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.True(
+            session.IsRevoked);
+
+        Assert.Equal(
+            revokedAt,
+            session.RevokedAtUtc);
+
+        Assert.Equal(
+            "User logged out.",
+            session.RevocationReason);
+    }
     private static ResetPasswordCommandHandler CreateHandler(
         FakeUserRepository userRepository,
         FakePasswordResetTokenRepository passwordResetTokenRepository,
         FakeRefreshTokenRepository? refreshTokenRepository = null,
+        FakeAuthSessionRepository? authSessionRepository = null,
         FakePasswordHasher? passwordHasher = null,
         FakeUnitOfWork? unitOfWork = null)
     {
@@ -650,6 +794,8 @@ public sealed class ResetPasswordCommandHandlerTests
             passwordResetTokenRepository,
             refreshTokenRepository ??
                 new FakeRefreshTokenRepository(),
+            authSessionRepository ??
+                new FakeAuthSessionRepository(),
             passwordHasher ??
                 new FakePasswordHasher(),
             new FakeTokenHasher(),
@@ -709,6 +855,9 @@ public sealed class ResetPasswordCommandHandlerTests
             Now.AddDays(29));
     }
 }
+
+
+
 
 
 
