@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Persistence;
@@ -41,12 +41,20 @@ public static class DependencyInjection
             EmailVerificationTokenRepository>();
 
         services.AddScoped<
+            IEmailChangeTokenRepository,
+            EmailChangeTokenRepository>();
+
+        services.AddScoped<
             IPasswordResetTokenRepository,
             PasswordResetTokenRepository>();
 
         services.AddScoped<
             IRefreshTokenRepository,
             RefreshTokenRepository>();
+
+        services.AddScoped<
+            IAuthSessionRepository,
+            AuthSessionRepository>();
 
         services.AddScoped<
             ILoginAttemptRepository,
@@ -74,3 +82,5 @@ public static class DependencyInjection
         return services;
     }
 }
+
+

@@ -40,6 +40,19 @@ public sealed class User : AggregateRoot<UserId>
 
     public DateTimeOffset? EmailConfirmedAtUtc { get; private set; }
 
+    public int FailedLoginAttempts { get; private set; }
+
+    public DateTimeOffset? LastFailedLoginAtUtc { get; private set; }
+
+    public DateTimeOffset? LockoutEndUtc { get; private set; }
+
+    public bool IsLockedOut(
+        DateTimeOffset now)
+    {
+        return LockoutEndUtc.HasValue &&
+               now < LockoutEndUtc.Value;
+    }
+
     public static User Register(
         UserId id,
         Email email,
@@ -83,6 +96,34 @@ public sealed class User : AggregateRoot<UserId>
                 confirmedAtUtc));
     }
 
+    public void RecordFailedLoginAttempt(
+        DateTimeOffset attemptedAtUtc)
+    {
+        FailedLoginAttempts++;
+
+        LastFailedLoginAtUtc =
+            attemptedAtUtc;
+    }
+
+    public void LockOutUntil(
+        DateTimeOffset lockoutEndUtc)
+    {
+        LockoutEndUtc =
+            lockoutEndUtc;
+    }
+
+    public void ResetFailedLoginAttempts()
+    {
+        FailedLoginAttempts =
+            0;
+
+        LastFailedLoginAtUtc =
+            null;
+
+        LockoutEndUtc =
+            null;
+    }
+
     public void ChangePassword(
         string passwordHash,
         DateTimeOffset changedAtUtc)
@@ -97,3 +138,4 @@ public sealed class User : AggregateRoot<UserId>
                 changedAtUtc));
     }
 }
+

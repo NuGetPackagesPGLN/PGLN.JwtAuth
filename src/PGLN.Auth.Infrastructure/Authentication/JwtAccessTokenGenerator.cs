@@ -1,7 +1,8 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Infrastructure.Authentication;
@@ -32,10 +33,18 @@ public sealed class JwtAccessTokenGenerator
 
     public AccessTokenResult Generate(
         User user,
+        AuthSessionId sessionId,
         DateTimeOffset issuedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(
             user);
+
+        if (sessionId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Session id cannot be empty.",
+                nameof(sessionId));
+        }
 
         var expiresAtUtc =
             issuedAtUtc.Add(
@@ -56,6 +65,10 @@ public sealed class JwtAccessTokenGenerator
                 new Claim(
                     JwtRegisteredClaimNames.Sub,
                     user.Id.Value.ToString()),
+
+                new Claim(
+                    "sid",
+                    sessionId.Value.ToString()),
 
                 new Claim(
                     JwtRegisteredClaimNames.Email,

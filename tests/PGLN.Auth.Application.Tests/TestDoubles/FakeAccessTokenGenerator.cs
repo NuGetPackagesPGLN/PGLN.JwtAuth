@@ -1,4 +1,5 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Tests.TestDoubles;
@@ -16,10 +17,13 @@ internal sealed class FakeAccessTokenGenerator
 
     public User? LastUser { get; private set; }
 
+    public AuthSessionId? LastSessionId { get; private set; }
+
     public DateTimeOffset? LastIssuedAtUtc { get; private set; }
 
     public AccessTokenResult Generate(
         User user,
+        AuthSessionId sessionId,
         DateTimeOffset issuedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(
@@ -29,6 +33,9 @@ internal sealed class FakeAccessTokenGenerator
 
         LastUser =
             user;
+
+        LastSessionId =
+            sessionId;
 
         LastIssuedAtUtc =
             issuedAtUtc;

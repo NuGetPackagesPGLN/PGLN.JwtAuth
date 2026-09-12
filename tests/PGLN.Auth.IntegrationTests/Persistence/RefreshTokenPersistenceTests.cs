@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+using PGLN.Auth.IntegrationTests.TestHelpers;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PGLN.Auth.Domain.RefreshTokens;
 using PGLN.Auth.Domain.Users;
@@ -51,10 +52,20 @@ public sealed class RefreshTokenPersistenceTests
         context.Users.Add(
             user);
 
+        var session =
+            AuthSessionTestFactory.Create(
+                user.Id,
+                Now);
+
+        context.AuthSessions.Add(
+            session);
+
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                RefreshTokenFamilyId.New(), user.Id,
+                RefreshTokenFamilyId.New(),
+                user.Id,
+                session.Id,
                 "HASHED-REFRESH-TOKEN",
                 Now,
                 Now.AddDays(30));
@@ -117,10 +128,20 @@ public sealed class RefreshTokenPersistenceTests
         var replacementId =
             RefreshTokenId.New();
 
+        var session =
+            AuthSessionTestFactory.Create(
+                user.Id,
+                Now);
+
+        context.AuthSessions.Add(
+            session);
+
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                RefreshTokenFamilyId.New(), user.Id,
+                RefreshTokenFamilyId.New(),
+                user.Id,
+                session.Id,
                 "HASHED-OLD-TOKEN",
                 Now,
                 Now.AddDays(30));
@@ -185,11 +206,20 @@ public sealed class RefreshTokenPersistenceTests
         var familyId =
             RefreshTokenFamilyId.New();
 
+        var session =
+            AuthSessionTestFactory.Create(
+                user.Id,
+                Now);
+
+        context.AuthSessions.Add(
+            session);
+
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 familyId,
                 user.Id,
+                session.Id,
                 "family-persistence-token-hash",
                 Now,
                 Now.AddDays(30));
@@ -215,6 +245,8 @@ public sealed class RefreshTokenPersistenceTests
             persisted.FamilyId);
     }
 }
+
+
 
 
 

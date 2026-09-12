@@ -1,4 +1,5 @@
-﻿using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Domain.Tests.RefreshTokens;
@@ -67,10 +68,13 @@ public sealed class RefreshTokenLogoutTests
     {
         return RefreshToken.Create(
             RefreshTokenId.New(),
-            RefreshTokenFamilyId.New(), UserId.New(),
+            RefreshTokenFamilyId.New(), UserId.New(), AuthSessionId.New(),
             "HASHED-TOKEN",
             Now,
             Now.AddDays(30));
     }
 }
+
+
+
 

@@ -64,7 +64,18 @@ public sealed class UserConfiguration
         builder
             .Property(user => user.EmailConfirmedAtUtc);
 
+        builder
+            .Property(user => user.FailedLoginAttempts)
+            .IsRequired();
+
+        builder
+            .Property(user => user.LastFailedLoginAtUtc);
+
+        builder
+            .Property(user => user.LockoutEndUtc);
+
         builder.Ignore(
             user => user.DomainEvents);
     }
 }
+

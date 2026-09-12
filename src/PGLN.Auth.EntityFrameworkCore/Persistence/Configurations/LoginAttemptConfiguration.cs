@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PGLN.Auth.Domain.LoginAttempts;
@@ -27,6 +27,14 @@ public sealed class LoginAttemptConfiguration
                     value.HasValue
                         ? new UserId(value.Value)
                         : null);
+
+        var attemptedAtUtcConverter =
+            new ValueConverter<DateTimeOffset, long>(
+                value =>
+                    value.ToUnixTimeMilliseconds(),
+                value =>
+                    DateTimeOffset.FromUnixTimeMilliseconds(
+                        value));
 
         builder.ToTable(
             "LoginAttempts");
@@ -58,10 +66,9 @@ public sealed class LoginAttemptConfiguration
 
         builder
             .Property(attempt => attempt.AttemptedAtUtc)
+            .HasConversion(attemptedAtUtcConverter)
             .IsRequired();
 
-        builder
-            .HasIndex(attempt => attempt.Email);
 
         builder
             .HasIndex(attempt => attempt.UserId);
@@ -75,6 +82,7 @@ public sealed class LoginAttemptConfiguration
                     new
                     {
                         attempt.Email,
+                        attempt.Succeeded,
                         attempt.AttemptedAtUtc
                     });
 
@@ -85,3 +93,5 @@ public sealed class LoginAttemptConfiguration
             .OnDelete(DeleteBehavior.SetNull);
     }
 }
+
+

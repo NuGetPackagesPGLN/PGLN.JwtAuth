@@ -1,7 +1,8 @@
-﻿using PGLN.Auth.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
+using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.EntityFrameworkCore.Persistence.Repositories;
 
@@ -74,7 +75,17 @@ public sealed class RefreshTokenRepository
             .ToListAsync(
                 cancellationToken);
     }
+
+    public async Task<IReadOnlyCollection<RefreshToken>> GetBySessionIdAsync(
+        AuthSessionId sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext
+            .RefreshTokens
+            .Where(
+                refreshToken =>
+                    refreshToken.SessionId == sessionId)
+            .ToListAsync(
+                cancellationToken);
+    }
 }
-
-
-

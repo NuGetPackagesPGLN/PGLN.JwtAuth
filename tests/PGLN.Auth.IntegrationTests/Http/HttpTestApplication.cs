@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -9,7 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
+using PGLN.Auth.Application.Features.Login;
+using PGLN.Auth.AspNetCore.Authentication;
 using PGLN.Auth.AspNetCore.Endpoints;
+using PGLN.Auth.AspNetCore.RateLimiting;
 using PGLN.Auth.EntityFrameworkCore;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 using PGLN.Auth.Infrastructure;
@@ -39,7 +42,9 @@ internal sealed class HttpTestApplication
         return Application.GetTestClient();
     }
 
-    public static async Task<HttpTestApplication> CreateAsync()
+    public static async Task<HttpTestApplication> CreateAsync(
+        LoginRateLimitOptions? loginRateLimitOptions = null,
+        LoginEmailThrottleOptions? loginEmailThrottleOptions = null)
     {
         var connection =
             new SqliteConnection(
@@ -56,11 +61,18 @@ internal sealed class HttpTestApplication
         builder.WebHost.UseTestServer();
 
         builder.Services
-            .AddPGLNAuthApplication();
+            .AddPGLNAuthApplication(
+                loginEmailThrottleOptions:
+                    loginEmailThrottleOptions);
 
         builder.Services
             .AddPGLNAuthInfrastructure(
                 builder.Configuration);
+
+        builder.Services
+            .AddPGLNAuthAspNetCore(
+                builder.Configuration,
+                loginRateLimitOptions);
 
         builder.Services
             .AddPGLNAuthEntityFrameworkCore(
@@ -82,6 +94,10 @@ internal sealed class HttpTestApplication
 
         var application =
             builder.Build();
+
+        application.UseAuthentication();
+        application.UseAuthorization();
+        application.UseRateLimiter();
 
         application.MapPGLNAuthEndpoints();
 
@@ -138,3 +154,9 @@ internal sealed class HttpTestApplication
         await _connection.DisposeAsync();
     }
 }
+
+
+
+
+
+

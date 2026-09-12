@@ -1,6 +1,7 @@
-﻿using PGLN.Auth.Application.Features.LogoutAll;
+using PGLN.Auth.Application.Features.LogoutAll;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Tests.Features.LogoutAll;
@@ -216,6 +217,7 @@ public sealed class LogoutAllCommandHandlerTests
                 RefreshTokenId.New(),
                 RefreshTokenFamilyId.New(),
                 UserId.New(),
+                AuthSessionId.New(),
                 "hashed::anchor-token",
                 Now.AddDays(-31),
                 Now.AddSeconds(-1)));
@@ -302,8 +304,11 @@ public sealed class LogoutAllCommandHandlerTests
             RefreshTokenId.New(),
             RefreshTokenFamilyId.New(),
             userId,
+            AuthSessionId.New(),
             tokenHash,
             Now.AddDays(-1),
             Now.AddDays(29));
     }
 }
+
+

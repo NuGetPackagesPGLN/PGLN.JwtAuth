@@ -1,5 +1,7 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Domain.Sessions;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Features.Login;
+using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.LoginAttempts;
 using PGLN.Auth.Domain.Users;
@@ -54,9 +56,7 @@ public sealed class LoginCommandHandlerTests
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "missing@example.com",
-                    "Password123!"));
+                new LoginCommand("missing@example.com", "Password123!", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsFailure);
@@ -130,13 +130,11 @@ public sealed class LoginCommandHandlerTests
                 refreshTokens,
                 accessTokens,
                 refreshTokenGenerator,
-                passwordHasher);
+                passwordHasher: passwordHasher);
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "USER@example.com",
-                    "wrong-password"));
+                new LoginCommand("USER@example.com", "wrong-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsFailure);
@@ -204,9 +202,7 @@ public sealed class LoginCommandHandlerTests
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "user@example.com",
-                    "correct-password"));
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsFailure);
@@ -279,9 +275,7 @@ public sealed class LoginCommandHandlerTests
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "user@example.com",
-                    "correct-password"));
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsSuccess);
@@ -344,9 +338,7 @@ public sealed class LoginCommandHandlerTests
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "user@example.com",
-                    "correct-password"));
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsSuccess);
@@ -406,9 +398,7 @@ public sealed class LoginCommandHandlerTests
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "USER@example.com",
-                    "correct-password"));
+                new LoginCommand("USER@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsSuccess);
@@ -456,9 +446,7 @@ public sealed class LoginCommandHandlerTests
 
         var result =
             await handler.HandleAsync(
-                new LoginCommand(
-                    "user@example.com",
-                    "correct-password"));
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
 
         Assert.True(
             result.IsSuccess);
@@ -468,29 +456,788 @@ public sealed class LoginCommandHandlerTests
             unitOfWork.SaveChangesCallCount);
     }
 
+    [Fact]
+    public async Task HandleAsync_WhenMaximumFailedAttemptsReached_ShouldLockAccount()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        users.Seed(
+            user);
+
+        var loginAttempts =
+            new FakeLoginAttemptRepository();
+
+        var integrationEventPublisher =
+            new FakeIntegrationEventPublisher();
+
+        var handler =
+            CreateHandler(
+                users,
+                loginAttempts,
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                integrationEventPublisher:
+                    integrationEventPublisher,
+                accountLockoutOptions:
+                    new AccountLockoutOptions
+                    {
+                        MaxFailedAttempts = 3,
+                        FailureWindow =
+                            TimeSpan.FromMinutes(15),
+                        LockoutDuration =
+                            TimeSpan.FromMinutes(10)
+                    });
+
+        for (var attempt = 0;
+             attempt < 3;
+             attempt++)
+        {
+            var result =
+                await handler.HandleAsync(
+                    new LoginCommand("user@example.com", "wrong-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+            Assert.True(
+                result.IsFailure);
+        }
+
+        Assert.Equal(
+            3,
+            user.FailedLoginAttempts);
+
+        Assert.NotNull(
+            user.LockoutEndUtc);
+
+        Assert.Equal(
+            Now.AddMinutes(10),
+            user.LockoutEndUtc);
+
+        Assert.True(
+            user.IsLockedOut(
+                Now));
+
+        var integrationEvent =
+            Assert.Single(
+                integrationEventPublisher.Events);
+
+        var accountLocked =
+            Assert.IsType<AccountLockedNotificationRequested>(
+                integrationEvent);
+
+        Assert.Equal(
+            user.Id,
+            accountLocked.UserId);
+
+        Assert.Equal(
+            "user@example.com",
+            accountLocked.Email);
+
+        Assert.Equal(
+            Now.AddMinutes(10),
+            accountLocked.LockedUntilUtc);
+
+        Assert.Equal(
+            Now,
+            accountLocked.OccurredAtUtc);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenPreviousFailureIsOutsideFailureWindow_ShouldResetCounter()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        user.RecordFailedLoginAttempt(
+            Now.AddMinutes(-30));
+
+        user.RecordFailedLoginAttempt(
+            Now.AddMinutes(-29));
+
+        users.Seed(
+            user);
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                accountLockoutOptions:
+                    new AccountLockoutOptions
+                    {
+                        MaxFailedAttempts = 3,
+                        FailureWindow =
+                            TimeSpan.FromMinutes(15),
+                        LockoutDuration =
+                            TimeSpan.FromMinutes(10)
+                    });
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "wrong-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            1,
+            user.FailedLoginAttempts);
+
+        Assert.Equal(
+            Now,
+            user.LastFailedLoginAtUtc);
+
+        Assert.Null(
+            user.LockoutEndUtc);
+    }
+    [Fact]
+    public async Task HandleAsync_WithValidCredentials_ShouldResetFailedLoginState()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        user.RecordFailedLoginAttempt(
+            Now.AddMinutes(-5));
+
+        user.RecordFailedLoginAttempt(
+            Now.AddMinutes(-4));
+
+        users.Seed(
+            user);
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator());
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            0,
+            user.FailedLoginAttempts);
+
+        Assert.Null(
+            user.LastFailedLoginAtUtc);
+
+        Assert.Null(
+            user.LockoutEndUtc);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenAccountIsLocked_ShouldRejectLogin()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        user.LockOutUntil(
+            Now.AddMinutes(10));
+
+        users.Seed(
+            user);
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator());
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            LoginErrors.AccountLocked,
+            result.Error);
+
+        Assert.True(
+            user.IsLockedOut(
+                Now));
+    }
+    [Fact]
+    public async Task HandleAsync_WhenLockoutHasExpired_ShouldAllowValidLogin()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        user.RecordFailedLoginAttempt(
+            Now.AddMinutes(-20));
+
+        user.RecordFailedLoginAttempt(
+            Now.AddMinutes(-19));
+
+        user.LockOutUntil(
+            Now.AddMinutes(-1));
+
+        users.Seed(
+            user);
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator());
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            0,
+            user.FailedLoginAttempts);
+
+        Assert.Null(
+            user.LastFailedLoginAtUtc);
+
+        Assert.Null(
+            user.LockoutEndUtc);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenEmailThrottleLimitReached_ShouldReturnTooManyAttempts()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        users.Seed(
+            user);
+
+        var attempts =
+            new FakeLoginAttemptRepository();
+
+        for (var attempt = 0;
+             attempt < 10;
+             attempt++)
+        {
+            await attempts.AddAsync(
+                LoginAttempt.Failed(
+                    user.Email.NormalizedValue,
+                    user.Id,
+                    LoginFailureReason.InvalidCredentials,
+                    Now.AddMinutes(-1)));
+        }
+
+        var passwordHasher =
+            new FakeLoginPasswordHasher();
+
+        var accessTokens =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var handler =
+            CreateHandler(
+                users,
+                attempts,
+                refreshTokens,
+                accessTokens,
+                refreshTokenGenerator,
+                passwordHasher: passwordHasher,
+                loginEmailThrottleOptions:
+                    new LoginEmailThrottleOptions
+                    {
+                        MaxFailedAttempts = 10,
+                        Window =
+                            TimeSpan.FromMinutes(5)
+                    });
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("USER@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            LoginErrors.TooManyAttempts,
+            result.Error);
+
+        Assert.Empty(
+            refreshTokens.Tokens);
+
+        Assert.Equal(
+            0,
+            accessTokens.GenerateCallCount);
+
+        Assert.Equal(
+            0,
+            refreshTokenGenerator.GenerateCallCount);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenPreviousFailuresAreOutsideEmailThrottleWindow_ShouldAllowLogin()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        users.Seed(
+            user);
+
+        var attempts =
+            new FakeLoginAttemptRepository();
+
+        for (var attempt = 0;
+             attempt < 10;
+             attempt++)
+        {
+            await attempts.AddAsync(
+                LoginAttempt.Failed(
+                    user.Email.NormalizedValue,
+                    user.Id,
+                    LoginFailureReason.InvalidCredentials,
+                    Now.AddMinutes(-10)));
+        }
+
+        var accessTokens =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var handler =
+            CreateHandler(
+                users,
+                attempts,
+                new FakeRefreshTokenRepository(),
+                accessTokens,
+                refreshTokenGenerator,
+                loginEmailThrottleOptions:
+                    new LoginEmailThrottleOptions
+                    {
+                        MaxFailedAttempts = 10,
+                        Window =
+                            TimeSpan.FromMinutes(5)
+                    });
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            1,
+            accessTokens.GenerateCallCount);
+
+        Assert.Equal(
+            1,
+            refreshTokenGenerator.GenerateCallCount);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenAnotherEmailHasReachedThrottleLimit_ShouldAllowLogin()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        users.Seed(
+            user);
+
+        var attempts =
+            new FakeLoginAttemptRepository();
+
+        for (var attempt = 0;
+             attempt < 10;
+             attempt++)
+        {
+            await attempts.AddAsync(
+                LoginAttempt.Failed(
+                    "OTHER@EXAMPLE.COM",
+                    null,
+                    LoginFailureReason.InvalidCredentials,
+                    Now.AddMinutes(-1)));
+        }
+
+        var accessTokens =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var handler =
+            CreateHandler(
+                users,
+                attempts,
+                new FakeRefreshTokenRepository(),
+                accessTokens,
+                refreshTokenGenerator,
+                loginEmailThrottleOptions:
+                    new LoginEmailThrottleOptions
+                    {
+                        MaxFailedAttempts = 10,
+                        Window =
+                            TimeSpan.FromMinutes(5)
+                    });
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            1,
+            accessTokens.GenerateCallCount);
+
+        Assert.Equal(
+            1,
+            refreshTokenGenerator.GenerateCallCount);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenSameEmailUsesDifferentCasing_ShouldShareThrottleBucket()
+    {
+        var users =
+            new FakeUserRepository();
+
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        users.Seed(
+            user);
+
+        var attempts =
+            new FakeLoginAttemptRepository();
+
+        for (var attempt = 0;
+             attempt < 10;
+             attempt++)
+        {
+            await attempts.AddAsync(
+                LoginAttempt.Failed(
+                    "USER@EXAMPLE.COM",
+                    user.Id,
+                    LoginFailureReason.InvalidCredentials,
+                    Now.AddMinutes(-1)));
+        }
+
+        var handler =
+            CreateHandler(
+                users,
+                attempts,
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                loginEmailThrottleOptions:
+                    new LoginEmailThrottleOptions
+                    {
+                        MaxFailedAttempts = 10,
+                        Window =
+                            TimeSpan.FromMinutes(5)
+                    });
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand("user@example.com", "correct-password", "device-hash-001", "Test Device", "127.0.0.1", "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            LoginErrors.TooManyAttempts,
+            result.Error);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenLoggingInFromNewDevice_ShouldPublishSecurityNotification()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var integrationEvents =
+            new FakeIntegrationEventPublisher();
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                authSessionRepository: sessions,
+                integrationEventPublisher: integrationEvents);
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand(
+                    user.Email.Value,
+                    "correct-password",
+                    "device-hash-new",
+                    "Firefox on Linux",
+                    "192.168.1.25",
+                    "Firefox/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var integrationEvent =
+            Assert.Single(
+                integrationEvents.Events);
+
+        var notification =
+            Assert.IsType<NewDeviceLoginNotificationRequested>(
+                integrationEvent);
+
+        Assert.Equal(
+            user.Id,
+            notification.UserId);
+
+        Assert.Equal(
+            user.Email.Value,
+            notification.Email);
+
+        Assert.Equal(
+            "device-hash-new",
+            notification.DeviceIdHash);
+
+        Assert.Equal(
+            "Firefox on Linux",
+            notification.DeviceName);
+
+        Assert.Equal(
+            "192.168.1.25",
+            notification.IpAddress);
+
+        Assert.Equal(
+            "Firefox/1.0",
+            notification.UserAgent);
+
+        Assert.Equal(
+            Now,
+            notification.OccurredAtUtc);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenDeviceAlreadyHasActiveSession_ShouldNotPublishNewDeviceNotification()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var existingSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-known",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-2));
+
+        sessions.Seed(
+            existingSession);
+
+        var integrationEvents =
+            new FakeIntegrationEventPublisher();
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                authSessionRepository: sessions,
+                integrationEventPublisher: integrationEvents);
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand(
+                    user.Email.Value,
+                    "correct-password",
+                    "device-hash-known",
+                    "Chrome on Windows",
+                    "127.0.0.1",
+                    "Chrome/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Empty(
+            integrationEvents.Events);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenPreviouslySeenDeviceHasRevokedSession_ShouldNotPublishNewDeviceNotification()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var revokedSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-known",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-5));
+
+        revokedSession.Revoke(
+            Now.AddDays(-1),
+            "UserLoggedOut");
+
+        sessions.Seed(
+            revokedSession);
+
+        var integrationEvents =
+            new FakeIntegrationEventPublisher();
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                new FakeRefreshTokenRepository(),
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                authSessionRepository: sessions,
+                integrationEventPublisher: integrationEvents);
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand(
+                    user.Email.Value,
+                    "correct-password",
+                    "device-hash-known",
+                    "Chrome on Windows",
+                    "127.0.0.1",
+                    "Chrome/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Empty(
+            integrationEvents.Events);
+
+        Assert.Equal(
+            2,
+            sessions.Sessions.Count);
+
+        var newSession =
+            sessions.Sessions.Single(
+                session =>
+                    session.Id != revokedSession.Id);
+
+        Assert.Equal(
+            "device-hash-known",
+            newSession.DeviceIdHash);
+
+        Assert.False(
+            newSession.IsRevoked);
+    }
     private static LoginCommandHandler CreateHandler(
         FakeUserRepository userRepository,
         FakeLoginAttemptRepository loginAttemptRepository,
         FakeRefreshTokenRepository refreshTokenRepository,
         FakeAccessTokenGenerator accessTokenGenerator,
         FakeRefreshTokenGenerator refreshTokenGenerator,
+        FakeAuthSessionRepository? authSessionRepository = null,
         FakeLoginPasswordHasher? passwordHasher = null,
-        FakeUnitOfWork? unitOfWork = null)
+        FakeIntegrationEventPublisher? integrationEventPublisher = null,
+        FakeUnitOfWork? unitOfWork = null,
+        AccountLockoutOptions? accountLockoutOptions = null,
+        LoginEmailThrottleOptions? loginEmailThrottleOptions = null)
     {
         return new LoginCommandHandler(
             userRepository,
             loginAttemptRepository,
             refreshTokenRepository,
+            authSessionRepository ??
+                new FakeAuthSessionRepository(),
             passwordHasher ??
                 new FakeLoginPasswordHasher(),
             accessTokenGenerator,
             refreshTokenGenerator,
             new FakeTokenHasher(),
+            integrationEventPublisher ??
+                new FakeIntegrationEventPublisher(),
             unitOfWork ??
                 new FakeUnitOfWork(),
             new FakeClock(
                 Now),
-            RefreshOptions);
+            RefreshOptions,
+            accountLockoutOptions ??
+                new AccountLockoutOptions(),
+            loginEmailThrottleOptions ??
+                new LoginEmailThrottleOptions());
     }
 
     private static User CreateUser(
@@ -516,5 +1263,353 @@ public sealed class LoginCommandHandlerTests
 
         return user;
     }
-}
+
+    [Fact]
+    public async Task HandleAsync_WithValidCredentials_ShouldCreateSessionForDevice()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    refreshTokens,
+                    new FakeAccessTokenGenerator(),
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository: sessions)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-001",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var session =
+            Assert.Single(
+                sessions.Sessions);
+
+        Assert.Equal(
+            user.Id,
+            session.UserId);
+
+        Assert.Equal(
+            "device-hash-001",
+            session.DeviceIdHash);
+
+        Assert.Equal(
+            "Chrome on Windows",
+            session.DeviceName);
+
+        Assert.Equal(
+            "127.0.0.1",
+            session.IpAddress);
+
+        Assert.Equal(
+            "TestAgent/1.0",
+            session.UserAgent);
+
+        var refreshToken =
+            Assert.Single(
+                refreshTokens.Tokens);
+
+        Assert.Equal(
+            session.Id,
+            refreshToken.SessionId);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenDeviceAlreadyHasActiveSession_ShouldReuseExistingSession()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var existingSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-001",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "OldAgent/1.0",
+                Now.AddDays(-2));
+
+        sessions.Seed(
+            existingSession);
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                refreshTokens,
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                authSessionRepository: sessions);
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand(
+                    user.Email.Value,
+                    "correct-password",
+                    "device-hash-001",
+                    "Chrome on Windows",
+                    "127.0.0.1",
+                    "NewAgent/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Single(
+            sessions.Sessions);
+
+        var session =
+            sessions.Sessions.Single();
+
+        Assert.Equal(
+            existingSession.Id,
+            session.Id);
+
+        Assert.Equal(
+            "127.0.0.1",
+            session.IpAddress);
+
+        Assert.Equal(
+            "NewAgent/2.0",
+            session.UserAgent);
+
+        Assert.Equal(
+            Now,
+            session.LastSeenAtUtc);
+
+        var refreshToken =
+            Assert.Single(
+                refreshTokens.Tokens);
+
+        Assert.Equal(
+            existingSession.Id,
+            refreshToken.SessionId);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenLoggingInFromDifferentDevice_ShouldCreateNewSession()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var existingSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-001",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-2));
+
+        sessions.Seed(
+            existingSession);
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var handler =
+            CreateHandler(
+                users,
+                new FakeLoginAttemptRepository(),
+                refreshTokens,
+                new FakeAccessTokenGenerator(),
+                new FakeRefreshTokenGenerator(),
+                authSessionRepository: sessions);
+
+        var result =
+            await handler.HandleAsync(
+                new LoginCommand(
+                    user.Email.Value,
+                    "correct-password",
+                    "device-hash-002",
+                    "Safari on iPhone",
+                    "192.168.1.10",
+                    "Safari/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            2,
+            sessions.Sessions.Count);
+
+        var newSession =
+            sessions.Sessions.Single(
+                session =>
+                    session.DeviceIdHash == "device-hash-002");
+
+        Assert.NotEqual(
+            existingSession.Id,
+            newSession.Id);
+
+        Assert.Equal(
+            user.Id,
+            newSession.UserId);
+
+        Assert.Equal(
+            "Safari on iPhone",
+            newSession.DeviceName);
+
+        Assert.Equal(
+            "192.168.1.10",
+            newSession.IpAddress);
+
+        Assert.Equal(
+            "Safari/2.0",
+            newSession.UserAgent);
+
+        var refreshToken =
+            Assert.Single(
+                refreshTokens.Tokens);
+
+        Assert.Equal(
+            newSession.Id,
+            refreshToken.SessionId);
+    }
+    [Fact]
+    public async Task HandleAsync_WithValidCredentials_ShouldIssueAccessTokenForCreatedSession()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    refreshTokens,
+                    accessTokenGenerator,
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-001",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var session =
+            Assert.Single(
+                sessions.Sessions);
+
+        Assert.Equal(
+            1,
+            accessTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            session.Id,
+            accessTokenGenerator.LastSessionId);
+
+        Assert.Equal(
+            user,
+            accessTokenGenerator.LastUser);
+
+        Assert.Equal(
+            Now,
+            accessTokenGenerator.LastIssuedAtUtc);
+
+        var refreshToken =
+            Assert.Single(
+                refreshTokens.Tokens);
+
+        Assert.Equal(
+            session.Id,
+            refreshToken.SessionId);
+
+        Assert.Equal(
+            refreshToken.SessionId,
+            accessTokenGenerator.LastSessionId);
+    }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

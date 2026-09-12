@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.Login;
 
@@ -15,5 +15,18 @@ public sealed class LoginCommandValidator
         RuleFor(command => command.Password)
             .NotEmpty()
             .MaximumLength(128);
+
+        RuleFor(command => command.DeviceIdHash)
+            .NotEmpty()
+            .MaximumLength(256);
+
+        RuleFor(command => command.DeviceName)
+            .MaximumLength(256);
+
+        RuleFor(command => command.IpAddress)
+            .MaximumLength(64);
+
+        RuleFor(command => command.UserAgent)
+            .MaximumLength(1024);
     }
 }

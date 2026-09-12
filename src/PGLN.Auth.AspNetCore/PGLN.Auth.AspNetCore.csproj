@@ -1,15 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="..\PGLN.Auth.Application\PGLN.Auth.Application.csproj" />
-    <ProjectReference Include="..\PGLN.Auth.Contracts\PGLN.Auth.Contracts.csproj" />
-    <ProjectReference Include="..\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
-  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PGLN.Auth.Application\PGLN.Auth.Application.csproj" />
+    <ProjectReference Include="..\PGLN.Auth.Contracts\PGLN.Auth.Contracts.csproj" />
+    <ProjectReference Include="..\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
 </Project>

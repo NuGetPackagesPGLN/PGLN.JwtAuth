@@ -1,6 +1,7 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Infrastructure.Authentication;
 
@@ -26,12 +27,16 @@ public sealed class JwtAccessTokenGeneratorTests
         var user =
             CreateUser();
 
+        var sessionId =
+            AuthSessionId.New();
+
         var issuedAt =
             DateTimeOffset.UtcNow;
 
         var result =
             generator.Generate(
                 user,
+                sessionId,
                 issuedAt);
 
         var handler =
@@ -99,13 +104,20 @@ public sealed class JwtAccessTokenGeneratorTests
         var user =
             CreateUser();
 
+        var sessionId =
+            AuthSessionId.New();
+
         var result =
             generator.Generate(
                 user,
+                sessionId,
                 DateTimeOffset.UtcNow);
 
         var handler =
-            new JwtSecurityTokenHandler();
+            new JwtSecurityTokenHandler
+            {
+                MapInboundClaims = false
+            };
 
         var token =
             handler.ReadJwtToken(
@@ -127,6 +139,14 @@ public sealed class JwtAccessTokenGeneratorTests
                     claim =>
                         claim.Type ==
                         JwtRegisteredClaimNames.Email)
+                .Value);
+
+        Assert.Equal(
+            sessionId.Value.ToString(),
+            token.Claims
+                .Single(
+                    claim =>
+                        claim.Type == "sid")
                 .Value);
 
         Assert.False(
@@ -154,6 +174,7 @@ public sealed class JwtAccessTokenGeneratorTests
         var result =
             generator.Generate(
                 CreateUser(),
+                AuthSessionId.New(),
                 DateTimeOffset.UtcNow);
 
         var token =
@@ -188,6 +209,7 @@ public sealed class JwtAccessTokenGeneratorTests
         var result =
             generator.Generate(
                 CreateUser(),
+                AuthSessionId.New(),
                 issuedAt);
 
         Assert.Equal(
@@ -219,17 +241,22 @@ public sealed class JwtAccessTokenGeneratorTests
         var user =
             CreateUser();
 
+        var sessionId =
+            AuthSessionId.New();
+
         var issuedAt =
             DateTimeOffset.UtcNow;
 
         var first =
             generator.Generate(
                 user,
+                sessionId,
                 issuedAt);
 
         var second =
             generator.Generate(
                 user,
+                sessionId,
                 issuedAt);
 
         Assert.NotEqual(

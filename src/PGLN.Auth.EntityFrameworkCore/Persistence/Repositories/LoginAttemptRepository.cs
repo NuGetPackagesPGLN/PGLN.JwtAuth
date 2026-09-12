@@ -1,4 +1,5 @@
-﻿using PGLN.Auth.Application.Abstractions.Persistence;
+using Microsoft.EntityFrameworkCore;
+using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.LoginAttempts;
 
 namespace PGLN.Auth.EntityFrameworkCore.Persistence.Repositories;
@@ -31,4 +32,24 @@ public sealed class LoginAttemptRepository
                 loginAttempt,
                 cancellationToken);
     }
+
+    public Task<int> CountFailedAttemptsAsync(
+        string normalizedEmail,
+        DateTimeOffset sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            normalizedEmail);
+
+        return _dbContext.LoginAttempts
+            .AsNoTracking()
+            .CountAsync(
+                attempt =>
+                    attempt.Email == normalizedEmail &&
+                    !attempt.Succeeded &&
+                    attempt.AttemptedAtUtc >= sinceUtc,
+                cancellationToken);
+    }
 }
+
+

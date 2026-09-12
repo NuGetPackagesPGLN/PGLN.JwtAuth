@@ -1,6 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.EntityFrameworkCore.Persistence.Configurations;
@@ -47,6 +48,17 @@ internal sealed class RefreshTokenConfiguration
                     userId.Value,
                 value =>
                     new UserId(
+                        value))
+            .IsRequired();
+
+        builder.Property(
+                refreshToken =>
+                    refreshToken.SessionId)
+            .HasConversion(
+                sessionId =>
+                    sessionId.Value,
+                value =>
+                    new AuthSessionId(
                         value))
             .IsRequired();
 
@@ -100,10 +112,24 @@ internal sealed class RefreshTokenConfiguration
 
         builder.HasIndex(
             refreshToken =>
+                refreshToken.SessionId);
+
+        builder.HasIndex(
+            refreshToken =>
                 refreshToken.FamilyId);
 
         builder.HasIndex(
             refreshToken =>
                 refreshToken.ExpiresAtUtc);
+
+        builder
+            .HasOne<AuthSession>()
+            .WithMany()
+            .HasForeignKey(
+                refreshToken =>
+                    refreshToken.SessionId)
+            .OnDelete(
+                DeleteBehavior.Cascade);
     }
 }
+

@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Features.Login;
+using PGLN.Auth.AspNetCore.RateLimiting;
 using PGLN.Auth.Contracts.Authentication;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Authentication;
@@ -12,13 +13,17 @@ public static class LoginEndpoint
     public static RouteHandlerBuilder MapLoginEndpoint(
         this IEndpointRouteBuilder endpoints)
     {
-        return endpoints.MapPost(
-            "/login",
-            HandleAsync);
+        return endpoints
+            .MapPost(
+                "/login",
+                HandleAsync)
+            .RequireRateLimiting(
+                LoginRateLimitOptions.PolicyName);
     }
 
     private static async Task<IResult> HandleAsync(
         LoginRequest request,
+        HttpContext httpContext,
         IRequestDispatcher dispatcher,
         CancellationToken cancellationToken)
     {
@@ -26,7 +31,11 @@ public static class LoginEndpoint
             await dispatcher.SendAsync(
                 new LoginCommand(
                     request.Email,
-                    request.Password),
+                    request.Password,
+                    request.DeviceIdHash,
+                    request.DeviceName,
+                    httpContext.Connection.RemoteIpAddress?.ToString(),
+                    httpContext.Request.Headers.UserAgent.ToString()),
                 cancellationToken);
 
         if (result.IsSuccess)
@@ -45,7 +54,9 @@ public static class LoginEndpoint
         }
 
         if (result.Error ==
-            LoginErrors.InvalidCredentials)
+            LoginErrors.InvalidCredentials ||
+            result.Error ==
+            LoginErrors.AccountLocked)
         {
             return Results.Json(
                 new
@@ -74,6 +85,22 @@ public static class LoginEndpoint
                 },
                 statusCode:
                     StatusCodes.Status403Forbidden);
+        }
+
+        if (result.Error ==
+            LoginErrors.TooManyAttempts)
+        {
+            return Results.Json(
+                new
+                {
+                    code =
+                        result.Error.Code,
+
+                    description =
+                        result.Error.Description
+                },
+                statusCode:
+                    StatusCodes.Status429TooManyRequests);
         }
 
         return Results.Json(

@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Persistence;
+using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.LoginAttempts;
 
 namespace PGLN.Auth.Application.Tests.TestDoubles;
@@ -23,4 +23,21 @@ internal sealed class FakeLoginAttemptRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<int> CountFailedAttemptsAsync(
+        string normalizedEmail,
+        DateTimeOffset sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var count =
+            Attempts.Count(
+                attempt =>
+                    attempt.Email == normalizedEmail &&
+                    !attempt.Succeeded &&
+                    attempt.AttemptedAtUtc >= sinceUtc);
+
+        return Task.FromResult(
+            count);
+    }
 }
+

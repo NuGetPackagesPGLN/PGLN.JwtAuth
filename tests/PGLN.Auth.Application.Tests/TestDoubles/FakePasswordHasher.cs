@@ -6,11 +6,20 @@ internal sealed class FakePasswordHasher : IPasswordHasher
 {
     public string? LastPasswordHashed { get; private set; }
 
-    public string HashResult { get; set; } = "hashed-password";
+    public string? LastPasswordVerified { get; private set; }
 
-    public string Hash(string password)
+    public string? LastPasswordHashVerified { get; private set; }
+
+    public string HashResult { get; set; } =
+        "hashed-password";
+
+    public bool? VerifyResult { get; set; }
+
+    public string Hash(
+        string password)
     {
-        LastPasswordHashed = password;
+        LastPasswordHashed =
+            password;
 
         return HashResult;
     }
@@ -19,6 +28,19 @@ internal sealed class FakePasswordHasher : IPasswordHasher
         string password,
         string passwordHash)
     {
-        return passwordHash == Hash(password);
+        LastPasswordVerified =
+            password;
+
+        LastPasswordHashVerified =
+            passwordHash;
+
+        if (VerifyResult.HasValue)
+        {
+            return VerifyResult.Value;
+        }
+
+        return passwordHash ==
+            Hash(
+                password);
     }
 }

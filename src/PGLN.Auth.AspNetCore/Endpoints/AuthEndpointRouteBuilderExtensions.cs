@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.AspNetCore.Endpoints.Authentication;
 using PGLN.Auth.AspNetCore.Endpoints.EmailConfirmation;
 using PGLN.Auth.AspNetCore.Endpoints.Registration;
+using PGLN.Auth.AspNetCore.Endpoints.Sessions;
 
 namespace PGLN.Auth.AspNetCore.Endpoints;
 
@@ -38,10 +39,18 @@ public static class AuthEndpointRouteBuilderExtensions
         group.MapLogout();
 
         group.MapLogoutAll();
+
         group.MapResetPassword();
+
+        group.MapChangePassword()
+            .RequireAuthorization();
+
+        group.MapGetSessionsEndpoint();
+
+        group.MapRevokeSessionEndpoint();
+
+        group.MapRevokeOtherSessionsEndpoint();
 
         return group;
     }
 }
-
-

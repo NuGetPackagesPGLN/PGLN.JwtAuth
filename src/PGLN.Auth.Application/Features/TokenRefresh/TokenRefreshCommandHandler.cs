@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
@@ -162,7 +162,9 @@ public sealed class TokenRefreshCommandHandler
         var replacement =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                existingToken.FamilyId, user.Id,
+                existingToken.FamilyId,
+                user.Id,
+                existingToken.SessionId,
                 replacementTokenHash,
                 now,
                 now.Add(
@@ -180,6 +182,7 @@ public sealed class TokenRefreshCommandHandler
         var accessToken =
             _accessTokenGenerator.Generate(
                 user,
+                existingToken.SessionId,
                 now);
 
         await _unitOfWork
@@ -196,6 +199,8 @@ public sealed class TokenRefreshCommandHandler
                 replacement.ExpiresAtUtc));
     }
 }
+
+
 
 
 

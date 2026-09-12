@@ -1,7 +1,8 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Features.TokenRefresh;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Tests.Features.TokenRefresh;
@@ -88,7 +89,7 @@ public sealed class TokenRefreshCommandHandlerTests
         tokens.Seed(
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                RefreshTokenFamilyId.New(), user.Id,
+                RefreshTokenFamilyId.New(), user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-31),
                 Now.AddSeconds(-1)));
@@ -136,7 +137,7 @@ public sealed class TokenRefreshCommandHandlerTests
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                RefreshTokenFamilyId.New(), user.Id,
+                RefreshTokenFamilyId.New(), user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -203,7 +204,7 @@ public sealed class TokenRefreshCommandHandlerTests
         tokens.Seed(
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                RefreshTokenFamilyId.New(), missingUserId,
+                RefreshTokenFamilyId.New(), missingUserId, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-1),
                 Now.AddDays(29)));
@@ -546,7 +547,9 @@ public sealed class TokenRefreshCommandHandlerTests
     {
         return RefreshToken.Create(
             RefreshTokenId.New(),
-            RefreshTokenFamilyId.New(), userId,
+            RefreshTokenFamilyId.New(),
+            userId,
+            AuthSessionId.New(),
             "hashed::raw-refresh-token",
             Now.AddDays(-1),
             Now.AddDays(29));
@@ -571,7 +574,7 @@ public sealed class TokenRefreshCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 familyId,
-                user.Id,
+                user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -626,7 +629,7 @@ public sealed class TokenRefreshCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 familyId,
-                user.Id,
+                user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-2),
                 Now.AddDays(28));
@@ -636,6 +639,7 @@ public sealed class TokenRefreshCommandHandlerTests
                 RefreshTokenId.New(),
                 familyId,
                 user.Id,
+                rotatedToken.SessionId,
                 "hashed::replacement-refresh-token",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -726,7 +730,7 @@ public sealed class TokenRefreshCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 compromisedFamilyId,
-                user.Id,
+                user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-2),
                 Now.AddDays(28));
@@ -736,6 +740,7 @@ public sealed class TokenRefreshCommandHandlerTests
                 RefreshTokenId.New(),
                 compromisedFamilyId,
                 user.Id,
+                rotatedToken.SessionId,
                 "hashed::compromised-replacement",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -745,6 +750,7 @@ public sealed class TokenRefreshCommandHandlerTests
                 RefreshTokenId.New(),
                 unrelatedFamilyId,
                 user.Id,
+                rotatedToken.SessionId,
                 "hashed::unrelated-token",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -806,7 +812,7 @@ public sealed class TokenRefreshCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 familyId,
-                user.Id,
+                user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-2),
                 Now.AddDays(28));
@@ -816,6 +822,7 @@ public sealed class TokenRefreshCommandHandlerTests
                 RefreshTokenId.New(),
                 familyId,
                 user.Id,
+                loggedOutToken.SessionId,
                 "hashed::other-token",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -880,7 +887,7 @@ public sealed class TokenRefreshCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 familyId,
-                user.Id,
+                user.Id, AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-2),
                 Now.AddDays(28));
@@ -890,6 +897,7 @@ public sealed class TokenRefreshCommandHandlerTests
                 RefreshTokenId.New(),
                 familyId,
                 user.Id,
+                rotatedToken.SessionId,
                 "hashed::replacement",
                 Now.AddDays(-1),
                 Now.AddDays(29));
@@ -935,7 +943,131 @@ public sealed class TokenRefreshCommandHandlerTests
             0,
             unitOfWork.SaveChangesCallCount);
     }
-}
+
+    [Fact]
+    public async Task HandleAsync_WithValidToken_ShouldPreserveSessionId()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessionId =
+            AuthSessionId.New();
+
+        var existing =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                RefreshTokenFamilyId.New(),
+                user.Id,
+                sessionId,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        var tokens =
+            new FakeRefreshTokenRepository();
+
+        tokens.Seed(
+            existing);
+
+        var result =
+            await CreateHandler(
+                    tokens,
+                    users)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var replacement =
+            tokens.Tokens.Single(
+                token =>
+                    token.Id != existing.Id);
+
+        Assert.Equal(
+            sessionId,
+            existing.SessionId);
+
+        Assert.Equal(
+            sessionId,
+            replacement.SessionId);
+    }
+    [Fact]
+    public async Task HandleAsync_WithValidToken_ShouldIssueAccessTokenForSameSession()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessionId =
+            AuthSessionId.New();
+
+        var existing =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                RefreshTokenFamilyId.New(),
+                user.Id,
+                sessionId,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        var tokens =
+            new FakeRefreshTokenRepository();
+
+        tokens.Seed(
+            existing);
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var result =
+            await CreateHandler(
+                    tokens,
+                    users,
+                    accessTokenGenerator:
+                        accessTokenGenerator)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            1,
+            accessTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            sessionId,
+            accessTokenGenerator.LastSessionId);
+
+        Assert.Equal(
+            user,
+            accessTokenGenerator.LastUser);
+
+        Assert.Equal(
+            Now,
+            accessTokenGenerator.LastIssuedAtUtc);
+    }}
+
+
+
+
+
+
 
 
 

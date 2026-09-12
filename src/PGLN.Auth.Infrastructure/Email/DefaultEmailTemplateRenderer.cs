@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Email;
+using PGLN.Auth.Application.Abstractions.Email;
 
 namespace PGLN.Auth.Infrastructure.Email;
 
@@ -78,6 +78,84 @@ public sealed class DefaultEmailTemplateRenderer
             htmlBody);
     }
 
+    public EmailMessage RenderEmailChangeConfirmation(
+        string email,
+        string verificationUrl)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        ArgumentException.ThrowIfNullOrWhiteSpace(verificationUrl);
+
+        const string subject =
+            "Confirm your new email address";
+
+        var textBody =
+            $"""
+            We received a request to change the email address
+            for your PGLN Auth account.
+
+            Confirm your new email address by opening the following link:
+
+            {verificationUrl}
+
+            Your account email will not change until this link
+            has been confirmed.
+
+            If you did not request this change,
+            you can ignore this email.
+            """;
+
+        var htmlBody =
+            $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport"
+                      content="width=device-width, initial-scale=1">
+                <title>Confirm your new email address</title>
+            </head>
+            <body>
+                <h1>Confirm your new email address</h1>
+
+                <p>
+                    We received a request to change the email
+                    address for your PGLN Auth account.
+                </p>
+
+                <p>
+                    <a href="{verificationUrl}">
+                        Confirm new email
+                    </a>
+                </p>
+
+                <p>
+                    If the button does not work, copy and paste
+                    this URL into your browser:
+                </p>
+
+                <p>
+                    {verificationUrl}
+                </p>
+
+                <p>
+                    Your account email will not change until
+                    this link has been confirmed.
+                </p>
+
+                <p>
+                    If you did not request this change,
+                    you can ignore this email.
+                </p>
+            </body>
+            </html>
+            """;
+
+        return CreateMessage(
+            email,
+            subject,
+            textBody,
+            htmlBody);
+    }
     public EmailMessage RenderWelcomeEmail(
         string email)
     {
@@ -196,6 +274,252 @@ public sealed class DefaultEmailTemplateRenderer
             htmlBody);
     }
 
+
+    public EmailMessage RenderPasswordChanged(
+        string email,
+        DateTimeOffset changedAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        const string subject =
+            "Your password was changed";
+
+        var textBody =
+            $"""
+            The password for your PGLN Auth account was changed.
+
+            Time:
+            {changedAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+
+            If you made this change, no further action is required.
+
+            If you did not change your password,
+            secure your account immediately.
+            """;
+
+        var htmlBody =
+            $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport"
+                      content="width=device-width, initial-scale=1">
+                <title>Password changed</title>
+            </head>
+            <body>
+                <h1>Your password was changed</h1>
+
+                <p>
+                    The password for your PGLN Auth account
+                    was successfully changed.
+                </p>
+
+                <p>
+                    <strong>Time:</strong>
+                    {changedAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+                </p>
+
+                <p>
+                    If you made this change,
+                    no further action is required.
+                </p>
+
+                <p>
+                    If you did not change your password,
+                    secure your account immediately.
+                </p>
+            </body>
+            </html>
+            """;
+
+        return CreateMessage(
+            email,
+            subject,
+            textBody,
+            htmlBody);
+    }
+    public EmailMessage RenderNewDeviceLogin(
+        string email,
+        string? deviceName,
+        string? ipAddress,
+        string? userAgent,
+        DateTimeOffset occurredAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        const string subject =
+            "New device login detected";
+
+        var displayDevice =
+            string.IsNullOrWhiteSpace(deviceName)
+                ? "Unknown device"
+                : deviceName;
+
+        var displayIpAddress =
+            string.IsNullOrWhiteSpace(ipAddress)
+                ? "Unknown"
+                : ipAddress;
+
+        var displayUserAgent =
+            string.IsNullOrWhiteSpace(userAgent)
+                ? "Unknown"
+                : userAgent;
+
+        var textBody =
+            $"""
+            A new device signed in to your PGLN Auth account.
+
+            Device:
+            {displayDevice}
+
+            IP address:
+            {displayIpAddress}
+
+            Browser / client:
+            {displayUserAgent}
+
+            Time:
+            {occurredAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+
+            If this was you, no further action is required.
+
+            If you do not recognize this login,
+            secure your account immediately.
+            """;
+
+        var htmlBody =
+            $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport"
+                      content="width=device-width, initial-scale=1">
+                <title>New device login detected</title>
+            </head>
+            <body>
+                <h1>New device login detected</h1>
+
+                <p>
+                    A new device signed in to your
+                    PGLN Auth account.
+                </p>
+
+                <p>
+                    <strong>Device:</strong>
+                    {displayDevice}
+                </p>
+
+                <p>
+                    <strong>IP address:</strong>
+                    {displayIpAddress}
+                </p>
+
+                <p>
+                    <strong>Browser / client:</strong>
+                    {displayUserAgent}
+                </p>
+
+                <p>
+                    <strong>Time:</strong>
+                    {occurredAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+                </p>
+
+                <p>
+                    If this was you,
+                    no further action is required.
+                </p>
+
+                <p>
+                    If you do not recognize this login,
+                    secure your account immediately.
+                </p>
+            </body>
+            </html>
+            """;
+
+        return CreateMessage(
+            email,
+            subject,
+            textBody,
+            htmlBody);
+    }
+    public EmailMessage RenderAccountLocked(
+        string email,
+        DateTimeOffset lockedUntilUtc,
+        DateTimeOffset occurredAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        const string subject =
+            "Your account has been temporarily locked";
+
+        var textBody =
+            $"""
+            Your PGLN Auth account has been temporarily locked
+            because of repeated unsuccessful login attempts.
+
+            Lock occurred:
+            {occurredAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+
+            Account unlocks:
+            {lockedUntilUtc:yyyy-MM-dd HH:mm:ss} UTC
+
+            You can try signing in again after the lockout expires.
+
+            If these login attempts were not yours,
+            secure your account before signing in again.
+            """;
+
+        var htmlBody =
+            $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport"
+                      content="width=device-width, initial-scale=1">
+                <title>Account temporarily locked</title>
+            </head>
+            <body>
+                <h1>Your account has been temporarily locked</h1>
+
+                <p>
+                    Your PGLN Auth account has been temporarily
+                    locked because of repeated unsuccessful
+                    login attempts.
+                </p>
+
+                <p>
+                    <strong>Lock occurred:</strong>
+                    {occurredAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+                </p>
+
+                <p>
+                    <strong>Account unlocks:</strong>
+                    {lockedUntilUtc:yyyy-MM-dd HH:mm:ss} UTC
+                </p>
+
+                <p>
+                    You can try signing in again after
+                    the lockout expires.
+                </p>
+
+                <p>
+                    If these login attempts were not yours,
+                    secure your account before signing in again.
+                </p>
+            </body>
+            </html>
+            """;
+
+        return CreateMessage(
+            email,
+            subject,
+            textBody,
+            htmlBody);
+    }
     private static EmailMessage CreateMessage(
         string email,
         string subject,
@@ -209,4 +533,8 @@ public sealed class DefaultEmailTemplateRenderer
             textBody);
     }
 }
+
+
+
+
 

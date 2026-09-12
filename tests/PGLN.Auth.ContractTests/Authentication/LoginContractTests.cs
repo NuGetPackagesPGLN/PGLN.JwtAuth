@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using PGLN.Auth.Contracts.Authentication;
 
 namespace PGLN.Auth.ContractTests.Authentication;
@@ -11,7 +11,9 @@ public sealed class LoginContractTests
         var request =
             new LoginRequest(
                 "user@example.com",
-                "SecretPassword123!");
+                "SecretPassword123!",
+                "device-hash-123",
+                "Chrome on Windows");
 
         var json =
             JsonSerializer.Serialize(
@@ -35,7 +37,17 @@ public sealed class LoginContractTests
                 .GetString());
 
         Assert.Equal(
-            2,
+            "device-hash-123",
+            root.GetProperty("DeviceIdHash")
+                .GetString());
+
+        Assert.Equal(
+            "Chrome on Windows",
+            root.GetProperty("DeviceName")
+                .GetString());
+
+        Assert.Equal(
+            4,
             root.EnumerateObject()
                 .Count());
     }

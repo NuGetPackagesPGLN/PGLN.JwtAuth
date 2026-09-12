@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Email;
@@ -132,6 +132,221 @@ public sealed class OutboxProcessorIntegrationTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ProcessAsync_WithPasswordChangedNotification_ShouldSendEmailAndMarkMessageProcessed()
+    {
+        await using var connection =
+            await CreateOpenConnectionAsync();
+
+        var options =
+            CreateOptions(connection);
+
+        await using var dbContext =
+            new AuthDbContext(options);
+
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var protector =
+            new TestPayloadProtector();
+
+        var emailSender =
+            new TestEmailSender();
+
+        using var serviceProvider =
+            CreateServiceProvider(
+                emailSender);
+
+        var dispatcher =
+            new IntegrationEventDispatcher(
+                serviceProvider);
+
+        var publisher =
+            new OutboxIntegrationEventPublisher(
+                dbContext,
+                protector);
+
+        var integrationEvent =
+            new PasswordChangedNotificationRequested(
+                Guid.NewGuid(),
+                UserId.New(),
+                "user@example.com",
+                Now);
+
+        await publisher.PublishAsync(
+            integrationEvent);
+
+        await dbContext.SaveChangesAsync();
+
+        var processor =
+            new OutboxProcessor(
+                dbContext,
+                protector,
+                new IntegrationEventTypeRegistry(),
+                dispatcher,
+                new TestClock(Now),
+                ProcessingOptions);
+
+        var processed =
+            await processor.ProcessAsync(
+                "integration-test-worker");
+
+        Assert.Equal(
+            1,
+            processed);
+
+        var message =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.True(
+            message.IsProcessed);
+
+        Assert.Equal(
+            Now,
+            message.ProcessedAtUtc);
+
+        Assert.Equal(
+            1,
+            message.AttemptCount);
+
+        Assert.Null(
+            message.LastError);
+
+        var email =
+            Assert.Single(
+                emailSender.Messages);
+
+        Assert.Equal(
+            "user@example.com",
+            email.To);
+
+        Assert.Equal(
+            "Your password was changed",
+            email.Subject);
+
+        Assert.Contains(
+            Now.ToString("O"),
+            email.HtmlBody,
+            StringComparison.Ordinal);
+    }
+    [Fact]
+    public async Task ProcessAsync_WithNewDeviceLoginNotification_ShouldSendEmailAndMarkMessageProcessed()
+    {
+        await using var connection =
+            await CreateOpenConnectionAsync();
+
+        var options =
+            CreateOptions(connection);
+
+        await using var dbContext =
+            new AuthDbContext(options);
+
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var protector =
+            new TestPayloadProtector();
+
+        var emailSender =
+            new TestEmailSender();
+
+        using var serviceProvider =
+            CreateServiceProvider(
+                emailSender);
+
+        var dispatcher =
+            new IntegrationEventDispatcher(
+                serviceProvider);
+
+        var publisher =
+            new OutboxIntegrationEventPublisher(
+                dbContext,
+                protector);
+
+        var integrationEvent =
+            new NewDeviceLoginNotificationRequested(
+                Guid.NewGuid(),
+                UserId.New(),
+                "user@example.com",
+                "device-hash-001",
+                "Chrome on Windows",
+                "192.168.1.25",
+                "Mozilla/5.0",
+                Now);
+
+        await publisher.PublishAsync(
+            integrationEvent);
+
+        await dbContext.SaveChangesAsync();
+
+        var processor =
+            new OutboxProcessor(
+                dbContext,
+                protector,
+                new IntegrationEventTypeRegistry(),
+                dispatcher,
+                new TestClock(Now),
+                ProcessingOptions);
+
+        var processed =
+            await processor.ProcessAsync(
+                "integration-test-worker");
+
+        Assert.Equal(
+            1,
+            processed);
+
+        var message =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.True(
+            message.IsProcessed);
+
+        Assert.Equal(
+            Now,
+            message.ProcessedAtUtc);
+
+        Assert.Equal(
+            1,
+            message.AttemptCount);
+
+        Assert.Null(
+            message.LastError);
+
+        var email =
+            Assert.Single(
+                emailSender.Messages);
+
+        Assert.Equal(
+            "user@example.com",
+            email.To);
+
+        Assert.Equal(
+            "New device login detected",
+            email.Subject);
+
+        Assert.Contains(
+            "Chrome on Windows",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "192.168.1.25",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "Mozilla/5.0",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            Now.ToString("O"),
+            email.HtmlBody,
+            StringComparison.Ordinal);
+    }
     [Fact]
     public async Task ProcessAsync_WhenHandlerFails_ShouldRecordFailureAndLeaveMessageUnprocessed()
     {
@@ -426,6 +641,234 @@ public sealed class OutboxProcessorIntegrationTests
             emailSender.Messages);
     }
 
+    [Fact]
+    public async Task ProcessAsync_WithAccountLockedNotification_ShouldSendEmailAndMarkMessageProcessed()
+    {
+        await using var connection =
+            await CreateOpenConnectionAsync();
+
+        var options =
+            CreateOptions(connection);
+
+        await using var dbContext =
+            new AuthDbContext(options);
+
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var protector =
+            new TestPayloadProtector();
+
+        var emailSender =
+            new TestEmailSender();
+
+        using var serviceProvider =
+            CreateServiceProvider(
+                emailSender);
+
+        var dispatcher =
+            new IntegrationEventDispatcher(
+                serviceProvider);
+
+        var publisher =
+            new OutboxIntegrationEventPublisher(
+                dbContext,
+                protector);
+
+        var lockedUntilUtc =
+            Now.AddMinutes(15);
+
+        var integrationEvent =
+            new AccountLockedNotificationRequested(
+                Guid.NewGuid(),
+                UserId.New(),
+                "user@example.com",
+                lockedUntilUtc,
+                Now);
+
+        await publisher.PublishAsync(
+            integrationEvent);
+
+        await dbContext.SaveChangesAsync();
+
+        var processor =
+            new OutboxProcessor(
+                dbContext,
+                protector,
+                new IntegrationEventTypeRegistry(),
+                dispatcher,
+                new TestClock(Now),
+                ProcessingOptions);
+
+        var processed =
+            await processor.ProcessAsync(
+                "integration-test-worker");
+
+        Assert.Equal(
+            1,
+            processed);
+
+        var message =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.True(
+            message.IsProcessed);
+
+        Assert.Equal(
+            Now,
+            message.ProcessedAtUtc);
+
+        Assert.Equal(
+            1,
+            message.AttemptCount);
+
+        Assert.Null(
+            message.LastError);
+
+        var email =
+            Assert.Single(
+                emailSender.Messages);
+
+        Assert.Equal(
+            "user@example.com",
+            email.To);
+
+        Assert.Equal(
+            "Your account has been temporarily locked",
+            email.Subject);
+
+        Assert.Contains(
+            Now.ToString("O"),
+            email.HtmlBody,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            lockedUntilUtc.ToString("O"),
+            email.HtmlBody,
+            StringComparison.Ordinal);
+    }
+    [Fact]
+    public async Task ProcessAsync_WithEmailChangeConfirmationEvent_ShouldSendEmailAndMarkMessageProcessed()
+    {
+        await using var connection =
+            await CreateOpenConnectionAsync();
+
+        var options =
+            CreateOptions(connection);
+
+        await using var dbContext =
+            new AuthDbContext(options);
+
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var protector =
+            new TestPayloadProtector();
+
+        var emailSender =
+            new TestEmailSender();
+
+        using var serviceProvider =
+            CreateServiceProvider(
+                emailSender);
+
+        var dispatcher =
+            new IntegrationEventDispatcher(
+                serviceProvider);
+
+        var publisher =
+            new OutboxIntegrationEventPublisher(
+                dbContext,
+                protector);
+
+        var integrationEvent =
+            new EmailChangeConfirmationRequested(
+                Guid.NewGuid(),
+                UserId.New(),
+                "new-email@example.com",
+                "email-change-token",
+                Now);
+
+        await publisher.PublishAsync(
+            integrationEvent);
+
+        await dbContext.SaveChangesAsync();
+
+        var storedMessage =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.False(
+            storedMessage.IsProcessed);
+
+        Assert.DoesNotContain(
+            "email-change-token",
+            storedMessage.Payload,
+            StringComparison.Ordinal);
+
+        Assert.StartsWith(
+            "PROTECTED::",
+            storedMessage.Payload);
+
+        var processor =
+            new OutboxProcessor(
+                dbContext,
+                protector,
+                new IntegrationEventTypeRegistry(),
+                dispatcher,
+                new TestClock(Now),
+                ProcessingOptions);
+
+        var processed =
+            await processor.ProcessAsync(
+                "integration-test-worker");
+
+        Assert.Equal(
+            1,
+            processed);
+
+        var processedMessage =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.True(
+            processedMessage.IsProcessed);
+
+        Assert.Equal(
+            Now,
+            processedMessage.ProcessedAtUtc);
+
+        Assert.Equal(
+            1,
+            processedMessage.AttemptCount);
+
+        Assert.Null(
+            processedMessage.LastError);
+
+        var email =
+            Assert.Single(
+                emailSender.Messages);
+
+        Assert.Equal(
+            "new-email@example.com",
+            email.To);
+
+        Assert.Equal(
+            "Confirm your new email",
+            email.Subject);
+
+        Assert.Contains(
+            "https://app.example.com/confirm-email-change",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "email-change-token",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+    }
     private static ServiceProvider CreateServiceProvider(
         TestEmailSender sender)
     {
@@ -444,7 +887,10 @@ public sealed class OutboxProcessorIntegrationTests
             new EmailDeliveryOptions
             {
                 ConfirmationBaseUrl =
-                    "https://app.example.com/confirm-email"
+                    "https://app.example.com/confirm-email",
+
+                EmailChangeConfirmationBaseUrl =
+                    "https://app.example.com/confirm-email-change"
             });
 
         services.AddTransient<
@@ -452,8 +898,24 @@ public sealed class OutboxProcessorIntegrationTests
             EmailConfirmationRequestedHandler>();
 
         services.AddTransient<
+            IIntegrationEventHandler<EmailChangeConfirmationRequested>,
+            EmailChangeConfirmationRequestedHandler>();
+
+        services.AddTransient<
             IIntegrationEventHandler<WelcomeEmailRequested>,
             WelcomeEmailRequestedHandler>();
+
+        services.AddTransient<
+            IIntegrationEventHandler<PasswordChangedNotificationRequested>,
+            PasswordChangedNotificationRequestedHandler>();
+
+        services.AddTransient<
+            IIntegrationEventHandler<NewDeviceLoginNotificationRequested>,
+            NewDeviceLoginNotificationRequestedHandler>();
+
+        services.AddTransient<
+            IIntegrationEventHandler<AccountLockedNotificationRequested>,
+            AccountLockedNotificationRequestedHandler>();
 
         return services.BuildServiceProvider();
     }
@@ -496,6 +958,15 @@ public sealed class OutboxProcessorIntegrationTests
         }
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 

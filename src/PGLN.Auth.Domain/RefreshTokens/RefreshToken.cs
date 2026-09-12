@@ -1,4 +1,5 @@
-﻿using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Domain.Sessions;
+using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Domain.RefreshTokens;
 
@@ -12,6 +13,7 @@ public sealed class RefreshToken
         RefreshTokenId id,
         RefreshTokenFamilyId familyId,
         UserId userId,
+        AuthSessionId sessionId,
         string tokenHash,
         DateTimeOffset createdAtUtc,
         DateTimeOffset expiresAtUtc)
@@ -24,6 +26,9 @@ public sealed class RefreshToken
 
         UserId =
             userId;
+
+        SessionId =
+            sessionId;
 
         TokenHash =
             tokenHash;
@@ -40,6 +45,8 @@ public sealed class RefreshToken
     public RefreshTokenFamilyId FamilyId { get; private set; }
 
     public UserId UserId { get; private set; }
+
+    public AuthSessionId SessionId { get; private set; }
 
     public string TokenHash { get; private set; } =
         string.Empty;
@@ -75,6 +82,7 @@ public sealed class RefreshToken
         RefreshTokenId id,
         RefreshTokenFamilyId familyId,
         UserId userId,
+        AuthSessionId sessionId,
         string tokenHash,
         DateTimeOffset createdAtUtc,
         DateTimeOffset expiresAtUtc)
@@ -100,6 +108,7 @@ public sealed class RefreshToken
             id,
             familyId,
             userId,
+            sessionId,
             tokenHash,
             createdAtUtc,
             expiresAtUtc);
@@ -157,3 +166,4 @@ public sealed class RefreshToken
             replacementTokenId;
     }
 }
+

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -299,7 +299,9 @@ public sealed class LogoutAllEndpointHttpTests
                 "/api/auth/login",
                 new LoginRequest(
                     email,
-                    password));
+                    password,
+                    "integration-test-device",
+                    "Integration Test Device"));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -357,3 +359,4 @@ public sealed class LogoutAllEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+

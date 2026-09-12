@@ -1,4 +1,5 @@
-﻿using System.Net;
+using PGLN.Auth.IntegrationTests.TestHelpers;
+using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -375,7 +376,9 @@ public sealed class RefreshTokenEndpointHttpTests
                 "/api/auth/login",
                 new LoginRequest(
                     email,
-                    password));
+                    password,
+                    "integration-test-device",
+                    "Integration Test Device"));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -474,10 +477,20 @@ public sealed class RefreshTokenEndpointHttpTests
 
         user.ClearDomainEvents();
 
+        var session =
+            AuthSessionTestFactory.Create(
+                user.Id,
+                now.AddDays(-31));
+
+        dbContext.AuthSessions.Add(
+            session);
+
         var token =
             RefreshToken.Create(
                 RefreshTokenId.New(),
-                RefreshTokenFamilyId.New(), user.Id,
+                RefreshTokenFamilyId.New(),
+                user.Id,
+                session.Id,
                 tokenHasher.Hash(
                     rawRefreshToken),
                 now.AddDays(-31),
@@ -492,6 +505,8 @@ public sealed class RefreshTokenEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
+
 
 
 

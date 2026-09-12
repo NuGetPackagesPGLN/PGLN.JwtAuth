@@ -1,6 +1,7 @@
-﻿using PGLN.Auth.Application.Features.Logout;
+using PGLN.Auth.Application.Features.Logout;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Tests.Features.Logout;
@@ -151,6 +152,7 @@ public sealed class LogoutCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 RefreshTokenFamilyId.New(), UserId.New(),
+                AuthSessionId.New(),
                 "hashed::raw-refresh-token",
                 Now.AddDays(-31),
                 Now.AddSeconds(-1)));
@@ -192,9 +194,12 @@ public sealed class LogoutCommandHandlerTests
         return RefreshToken.Create(
             RefreshTokenId.New(),
             RefreshTokenFamilyId.New(), UserId.New(),
+            AuthSessionId.New(),
             "hashed::raw-refresh-token",
             Now.AddDays(-1),
             Now.AddDays(29));
     }
 }
+
+
 

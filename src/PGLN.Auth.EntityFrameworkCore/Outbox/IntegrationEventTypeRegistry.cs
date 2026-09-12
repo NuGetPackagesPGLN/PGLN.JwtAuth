@@ -13,7 +13,12 @@ public sealed class IntegrationEventTypeRegistry
             new[]
             {
                 typeof(EmailConfirmationRequested),
-                typeof(WelcomeEmailRequested)
+                typeof(EmailChangeConfirmationRequested),
+                typeof(WelcomeEmailRequested),
+                typeof(PasswordResetRequested),
+                typeof(PasswordChangedNotificationRequested),
+                typeof(NewDeviceLoginNotificationRequested),
+                typeof(AccountLockedNotificationRequested)
             };
 
         _eventTypes =

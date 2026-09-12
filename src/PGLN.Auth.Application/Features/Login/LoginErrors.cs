@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Common;
+using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.Login;
 
@@ -13,4 +13,16 @@ public static class LoginErrors
         new(
             "Login.EmailNotConfirmed",
             "The email address must be confirmed before signing in.");
+
+    public static readonly Error AccountLocked =
+        new(
+            "Login.AccountLocked",
+            "The account is temporarily locked. Please try again later.");
+
+    public static readonly Error TooManyAttempts =
+        new(
+            "Login.TooManyAttempts",
+            "Too many login attempts. Please try again later.");
 }
+
+

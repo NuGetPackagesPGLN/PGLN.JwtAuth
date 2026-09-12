@@ -1,7 +1,8 @@
-﻿using PGLN.Auth.Application.Features.ResetPassword;
+using PGLN.Auth.Application.Features.ResetPassword;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.PasswordResets;
 using PGLN.Auth.Domain.RefreshTokens;
+using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Tests.Features.ResetPassword;
@@ -334,7 +335,7 @@ public sealed class ResetPasswordCommandHandlerTests
             RefreshToken.Create(
                 RefreshTokenId.New(),
                 RefreshTokenFamilyId.New(),
-                user.Id,
+                user.Id, AuthSessionId.New(),
                 "hashed::expired-refresh",
                 Now.AddDays(-31),
                 Now.AddSeconds(-1));
@@ -702,10 +703,13 @@ public sealed class ResetPasswordCommandHandlerTests
             RefreshTokenId.New(),
             RefreshTokenFamilyId.New(),
             userId,
+            AuthSessionId.New(),
             tokenHash,
             Now.AddDays(-1),
             Now.AddDays(29));
     }
 }
+
+
 
 

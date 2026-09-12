@@ -1,4 +1,5 @@
-﻿using System.Net;
+using PGLN.Auth.IntegrationTests.TestHelpers;
+using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -1053,11 +1054,20 @@ public sealed class ResetPasswordEndpointHttpTests
             // Active refresh token A
             // ------------------------------------------------
 
+            var session =
+                AuthSessionTestFactory.Create(
+                    user.Id,
+                    now.AddDays(-20));
+
+            dbContext.AuthSessions.Add(
+                session);
+
             var activeTokenA =
                 RefreshToken.Create(
                     RefreshTokenId.New(),
                     RefreshTokenFamilyId.New(),
                     user.Id,
+                    session.Id,
                     tokenHasher.Hash(
                         "active-refresh-token-a"),
                     now.AddDays(-5),
@@ -1076,6 +1086,7 @@ public sealed class ResetPasswordEndpointHttpTests
                     RefreshTokenId.New(),
                     RefreshTokenFamilyId.New(),
                     user.Id,
+                    session.Id,
                     tokenHasher.Hash(
                         "active-refresh-token-b"),
                     now.AddDays(-2),
@@ -1094,6 +1105,7 @@ public sealed class ResetPasswordEndpointHttpTests
                     RefreshTokenId.New(),
                     RefreshTokenFamilyId.New(),
                     user.Id,
+                    session.Id,
                     tokenHasher.Hash(
                         "already-revoked-refresh-token"),
                     now.AddDays(-20),
@@ -1270,4 +1282,5 @@ public sealed class ResetPasswordEndpointHttpTests
         }
     }
 }
+
 

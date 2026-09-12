@@ -1,9 +1,10 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
+using PGLN.Auth.Application.Features.Login;
 using PGLN.Auth.Application.Messaging;
 
 namespace PGLN.Auth.Application;
@@ -15,7 +16,9 @@ public static class DependencyInjection
         PasswordPolicyOptions? passwordPolicy = null,
         EmailVerificationOptions? emailVerificationOptions = null,
         EmailDeliveryOptions? emailDeliveryOptions = null,
-        RefreshTokenOptions? refreshTokenOptions = null)
+        RefreshTokenOptions? refreshTokenOptions = null,
+        AccountLockoutOptions? accountLockoutOptions = null,
+        LoginEmailThrottleOptions? loginEmailThrottleOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -31,10 +34,14 @@ public static class DependencyInjection
         refreshTokenOptions ??=
             new RefreshTokenOptions();
 
+        accountLockoutOptions ??=
+            new AccountLockoutOptions();
+
         passwordPolicy.Validate();
         emailVerificationOptions.Validate();
         emailDeliveryOptions.Validate();
         refreshTokenOptions.Validate();
+        accountLockoutOptions.Validate();
 
         services.AddSingleton(
             passwordPolicy);
@@ -47,6 +54,17 @@ public static class DependencyInjection
 
         services.AddSingleton(
             refreshTokenOptions);
+
+        services.AddSingleton(
+            accountLockoutOptions);
+
+        loginEmailThrottleOptions ??=
+            new LoginEmailThrottleOptions();
+
+        loginEmailThrottleOptions.Validate();
+
+        services.AddSingleton(
+            loginEmailThrottleOptions);
 
         services.AddValidatorsFromAssembly(
             typeof(ApplicationAssemblyReference).Assembly,
@@ -86,3 +104,7 @@ public static class DependencyInjection
         return services;
     }
 }
+
+
+
+
