@@ -13,6 +13,7 @@ public sealed class TokenRefreshCommandHandler
         Result<TokenRefreshResult>>
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IAuthSessionRepository _authSessionRepository;
     private readonly IUserRepository _userRepository;
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
     private readonly IAccessTokenGenerator _accessTokenGenerator;
@@ -23,6 +24,7 @@ public sealed class TokenRefreshCommandHandler
 
     public TokenRefreshCommandHandler(
         IRefreshTokenRepository refreshTokenRepository,
+        IAuthSessionRepository authSessionRepository,
         IUserRepository userRepository,
         IRefreshTokenGenerator refreshTokenGenerator,
         IAccessTokenGenerator accessTokenGenerator,
@@ -32,6 +34,7 @@ public sealed class TokenRefreshCommandHandler
         RefreshTokenOptions refreshTokenOptions)
     {
         ArgumentNullException.ThrowIfNull(refreshTokenRepository);
+        ArgumentNullException.ThrowIfNull(authSessionRepository);
         ArgumentNullException.ThrowIfNull(userRepository);
         ArgumentNullException.ThrowIfNull(refreshTokenGenerator);
         ArgumentNullException.ThrowIfNull(accessTokenGenerator);
@@ -44,6 +47,9 @@ public sealed class TokenRefreshCommandHandler
 
         _refreshTokenRepository =
             refreshTokenRepository;
+
+        _authSessionRepository =
+            authSessionRepository;
 
         _userRepository =
             userRepository;
@@ -140,6 +146,19 @@ public sealed class TokenRefreshCommandHandler
                 TokenRefreshErrors.ExpiredToken);
         }
 
+        var session =
+            await _authSessionRepository
+                .GetByIdAsync(
+                    existingToken.SessionId,
+                    cancellationToken);
+
+        if (session is null ||
+            !session.IsActive)
+        {
+            return Result<TokenRefreshResult>.Failure(
+                TokenRefreshErrors.RevokedToken);
+        }
+
         var user =
             await _userRepository
                 .GetByIdAsync(
@@ -199,6 +218,7 @@ public sealed class TokenRefreshCommandHandler
                 replacement.ExpiresAtUtc));
     }
 }
+
 
 
 
