@@ -1571,10 +1571,13 @@ public sealed class LoginCommandHandlerTests
         var integrationEvents =
             new FakeIntegrationEventPublisher();
 
+        var loginAttempts =
+            new FakeLoginAttemptRepository();
+
         var result =
             await CreateHandler(
                     users,
-                    new FakeLoginAttemptRepository(),
+                    loginAttempts,
                     refreshTokens,
                     accessTokenGenerator,
                     refreshTokenGenerator,
@@ -1642,6 +1645,9 @@ public sealed class LoginCommandHandlerTests
         Assert.Equal(
             0,
             refreshTokenGenerator.GenerateCallCount);
+
+        Assert.Empty(
+            loginAttempts.Attempts);
 
         var challenge =
             Assert.Single(
@@ -2254,6 +2260,7 @@ public sealed class LoginCommandHandlerTests
             refreshToken.SessionId,
             accessTokenGenerator.LastSessionId);
     }}
+
 
 
 

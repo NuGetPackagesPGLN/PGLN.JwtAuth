@@ -4,6 +4,7 @@ using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
 using PGLN.Auth.Application.Configuration;
+using PGLN.Auth.Domain.LoginAttempts;
 using PGLN.Auth.Domain.RefreshTokens;
 using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.StepUpChallenges;
@@ -21,6 +22,7 @@ public sealed class VerifyStepUpChallengeCommandHandler
     private readonly IAuthSessionRepository _authSessionRepository;
     private readonly ITrustedDeviceRepository _trustedDeviceRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly ILoginAttemptRepository _loginAttemptRepository;
     private readonly IStepUpCodeProtector _stepUpCodeProtector;
     private readonly IAccessTokenGenerator _accessTokenGenerator;
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
@@ -36,6 +38,7 @@ public sealed class VerifyStepUpChallengeCommandHandler
         IAuthSessionRepository authSessionRepository,
         ITrustedDeviceRepository trustedDeviceRepository,
         IRefreshTokenRepository refreshTokenRepository,
+        ILoginAttemptRepository loginAttemptRepository,
         IStepUpCodeProtector stepUpCodeProtector,
         IAccessTokenGenerator accessTokenGenerator,
         IRefreshTokenGenerator refreshTokenGenerator,
@@ -50,6 +53,7 @@ public sealed class VerifyStepUpChallengeCommandHandler
         _authSessionRepository = authSessionRepository;
         _trustedDeviceRepository = trustedDeviceRepository;
         _refreshTokenRepository = refreshTokenRepository;
+        _loginAttemptRepository = loginAttemptRepository;
         _stepUpCodeProtector = stepUpCodeProtector;
         _accessTokenGenerator = accessTokenGenerator;
         _refreshTokenGenerator = refreshTokenGenerator;
@@ -224,6 +228,17 @@ public sealed class VerifyStepUpChallengeCommandHandler
                 session.Id,
                 now);
 
+        var successfulLoginAttempt =
+            LoginAttempt.Successful(
+                user.NormalizedEmail,
+                user.Id,
+                now);
+
+        await _loginAttemptRepository
+            .AddAsync(
+                successfulLoginAttempt,
+                cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
 
@@ -237,3 +252,5 @@ public sealed class VerifyStepUpChallengeCommandHandler
                 refreshToken.ExpiresAtUtc));
     }
 }
+
+

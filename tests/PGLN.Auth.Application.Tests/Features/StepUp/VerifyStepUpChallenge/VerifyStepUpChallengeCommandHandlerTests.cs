@@ -110,6 +110,28 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         Assert.Equal(
             fixture.User.Email.Value,
             result.Value.Email);
+
+        var loginAttempt =
+            Assert.Single(
+                fixture.LoginAttemptRepository.Attempts);
+
+        Assert.True(
+            loginAttempt.Succeeded);
+
+        Assert.Equal(
+            fixture.User.Id,
+            loginAttempt.UserId);
+
+        Assert.Equal(
+            fixture.User.NormalizedEmail,
+            loginAttempt.Email);
+
+        Assert.Equal(
+            Now,
+            loginAttempt.AttemptedAtUtc);
+
+        Assert.Null(
+            loginAttempt.FailureReason);
     }
 
     [Fact]
@@ -156,6 +178,9 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         Assert.Equal(
             1,
             fixture.UnitOfWork.SaveChangesCallCount);
+
+        Assert.Empty(
+            fixture.LoginAttemptRepository.Attempts);
     }
 
     [Fact]
@@ -196,6 +221,9 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         Assert.Equal(
             0,
             fixture.UnitOfWork.SaveChangesCallCount);
+
+        Assert.Empty(
+            fixture.LoginAttemptRepository.Attempts);
     }
 
     [Fact]
@@ -238,6 +266,9 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         Assert.Equal(
             0,
             fixture.UnitOfWork.SaveChangesCallCount);
+
+        Assert.Empty(
+            fixture.LoginAttemptRepository.Attempts);
     }
 
     [Fact]
@@ -363,6 +394,9 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         var refreshTokenRepository =
             new FakeRefreshTokenRepository();
 
+        var loginAttemptRepository =
+            new FakeLoginAttemptRepository();
+
         var stepUpCodeProtector =
             new FakeStepUpCodeProtector();
 
@@ -389,6 +423,7 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
                 authSessionRepository,
                 trustedDeviceRepository,
                 refreshTokenRepository,
+                loginAttemptRepository,
                 stepUpCodeProtector,
                 accessTokenGenerator,
                 refreshTokenGenerator,
@@ -415,7 +450,8 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
             authSessionRepository,
             trustedDeviceRepository,
             refreshTokenRepository,
-            stepUpCodeProtector,
+                loginAttemptRepository,
+                stepUpCodeProtector,
             accessTokenGenerator,
             refreshTokenGenerator,
             unitOfWork);
@@ -428,8 +464,10 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         FakeAuthSessionRepository AuthSessionRepository,
         FakeTrustedDeviceRepository TrustedDeviceRepository,
         FakeRefreshTokenRepository RefreshTokenRepository,
+        FakeLoginAttemptRepository LoginAttemptRepository,
         FakeStepUpCodeProtector StepUpCodeProtector,
         FakeAccessTokenGenerator AccessTokenGenerator,
         FakeRefreshTokenGenerator RefreshTokenGenerator,
         FakeUnitOfWork UnitOfWork);
 }
+
