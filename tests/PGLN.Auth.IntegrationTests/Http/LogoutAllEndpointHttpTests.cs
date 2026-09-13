@@ -22,7 +22,7 @@ public sealed class LogoutAllEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client,
                 "logout-all-user@example.com");
@@ -31,7 +31,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout-all",
                 new LogoutAllRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -48,13 +48,13 @@ public sealed class LogoutAllEndpointHttpTests
             application.CreateClient();
 
         var firstLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client,
                 "multi-session@example.com");
 
         var secondLogin =
-            await LoginExistingUserAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "multi-session@example.com");
 
@@ -62,7 +62,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout-all",
                 new LogoutAllRequest(
-                    firstLogin.RefreshToken));
+                    firstLogin.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -116,50 +116,30 @@ public sealed class LogoutAllEndpointHttpTests
         const string password =
             "SecretPassword123!";
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             email,
             password);
 
-        var firstResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "first-device",
-                    "First Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            firstResponse.StatusCode);
-
         var firstLogin =
-            await firstResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            firstLogin);
-
-        var secondResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "second-device",
-                    "Second Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            secondResponse.StatusCode);
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
+                client,
+                email,
+                password,
+                deviceIdHash:
+                    "first-device",
+                deviceName:
+                    "First Device");
 
         var secondLogin =
-            await secondResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            secondLogin);
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
+                client,
+                email,
+                password,
+                deviceIdHash:
+                    "second-device",
+                deviceName:
+                    "Second Device");
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
@@ -194,7 +174,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout-all",
                 new LogoutAllRequest(
-                    firstLogin.RefreshToken));
+                    firstLogin.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -236,13 +216,13 @@ public sealed class LogoutAllEndpointHttpTests
             application.CreateClient();
 
         var firstLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client,
                 "invalidate-all@example.com");
 
         var secondLogin =
-            await LoginExistingUserAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "invalidate-all@example.com");
 
@@ -250,7 +230,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout-all",
                 new LogoutAllRequest(
-                    firstLogin.RefreshToken));
+                    firstLogin.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -260,13 +240,13 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    firstLogin.RefreshToken));
+                    firstLogin.RefreshToken!));
 
         var secondRefresh =
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    secondLogin.RefreshToken));
+                    secondLogin.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.Unauthorized,
@@ -287,13 +267,13 @@ public sealed class LogoutAllEndpointHttpTests
             application.CreateClient();
 
         var targetLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client,
                 "target-user@example.com");
 
         var unrelatedLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client,
                 "unrelated-user@example.com");
@@ -302,7 +282,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout-all",
                 new LogoutAllRequest(
-                    targetLogin.RefreshToken));
+                    targetLogin.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -312,7 +292,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    unrelatedLogin.RefreshToken));
+                    unrelatedLogin.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -349,7 +329,7 @@ public sealed class LogoutAllEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client,
                 "revoked-anchor@example.com");
@@ -358,7 +338,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -368,7 +348,7 @@ public sealed class LogoutAllEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout-all",
                 new LogoutAllRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.Unauthorized,
@@ -395,95 +375,10 @@ public sealed class LogoutAllEndpointHttpTests
             response.StatusCode);
     }
 
-    private static async Task<LoginResponse> LoginAsync(
-        HttpTestApplication application,
-        HttpClient client,
-        string email)
-    {
-        const string password =
-            "SecretPassword123!";
-
-        await SeedConfirmedUserAsync(
-            application,
-            email,
-            password);
-
-        return await LoginExistingUserAsync(
-            client,
-            email);
-    }
-
-    private static async Task<LoginResponse> LoginExistingUserAsync(
-        HttpClient client,
-        string email)
-    {
-        const string password =
-            "SecretPassword123!";
-
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "integration-test-device",
-                    "Integration Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var body =
-            await response.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            body);
-
-        return body;
-    }
-
-    private static async Task SeedConfirmedUserAsync(
-        HttpTestApplication application,
-        string email,
-        string password)
-    {
-        await using var scope =
-            application.Application.Services
-                .CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
-
-        var passwordHasher =
-            scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher>();
-
-        var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    email),
-                passwordHasher.Hash(
-                    password),
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        user.ConfirmEmail(
-            now.AddHours(-1));
-
-        user.ClearDomainEvents();
-
-        dbContext.Users.Add(
-            user);
-
-        await dbContext.SaveChangesAsync();
-    }
 }
+
+
+
+
 
 

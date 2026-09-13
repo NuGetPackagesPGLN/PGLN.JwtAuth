@@ -26,7 +26,7 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         "Chrome on Windows";
 
     [Fact]
-    public async Task Login_AfterTrustedDeviceWasLoggedOut_ShouldTrustNewSession()
+    public async Task Login_AfterStepUpRememberedDeviceWasLoggedOut_ShouldTrustNewSession()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
@@ -47,19 +47,58 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
                 DeviceIdHash,
                 DeviceName);
 
+        Assert.Equal(
+            "StepUpRequired",
+            firstLogin.Status);
+
+        Assert.NotNull(
+            firstLogin.StepUpChallengeId);
+
+        Assert.Null(
+            firstLogin.AccessToken);
+
+        Assert.Null(
+            firstLogin.RefreshToken);
+
+        var verifyResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/verify-step-up",
+                new VerifyStepUpRequest(
+                    firstLogin.StepUpChallengeId.Value,
+                    "123456",
+                    true));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            verifyResponse.StatusCode);
+
+        var verifiedLogin =
+            await verifyResponse.Content
+                .ReadFromJsonAsync<VerifyStepUpResponse>();
+
+        Assert.NotNull(
+            verifiedLogin);
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                verifiedLogin.AccessToken));
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                verifiedLogin.RefreshToken));
+
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
                 "Bearer",
-                firstLogin.AccessToken);
+                verifiedLogin.AccessToken);
 
-        var trustResponse =
-            await client.PostAsync(
-                "/api/auth/trusted-devices/current",
-                content: null);
+        var trustedDevicesResponse =
+            await client.GetAsync(
+                "/api/auth/trusted-devices");
 
         Assert.Equal(
-            HttpStatusCode.NoContent,
-            trustResponse.StatusCode);
+            HttpStatusCode.OK,
+            trustedDevicesResponse.StatusCode);
 
         client.DefaultRequestHeaders.Authorization =
             null;
@@ -68,7 +107,7 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    firstLogin.RefreshToken));
+                    verifiedLogin.RefreshToken));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -77,7 +116,7 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
                 "Bearer",
-                firstLogin.AccessToken);
+                verifiedLogin.AccessToken);
 
         var oldAccessTokenResponse =
             await client.GetAsync(
@@ -98,8 +137,18 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
                 DeviceIdHash,
                 DeviceName);
 
+        Assert.Equal(
+            "AuthenticationComplete",
+            secondLogin.Status);
+
         Assert.NotNull(
             secondLogin.AccessToken);
+
+        Assert.NotNull(
+            secondLogin.RefreshToken);
+
+        Assert.Null(
+            secondLogin.StepUpChallengeId);
 
         await using var scope =
             application.Application.Services

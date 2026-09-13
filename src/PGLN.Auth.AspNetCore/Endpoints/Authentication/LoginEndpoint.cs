@@ -45,12 +45,14 @@ public static class LoginEndpoint
 
             return Results.Ok(
                 new LoginResponse(
+                    value.Status.ToString(),
                     value.UserId,
                     value.Email,
                     value.AccessToken,
                     value.AccessTokenExpiresAtUtc,
                     value.RefreshToken,
-                    value.RefreshTokenExpiresAtUtc));
+                    value.RefreshTokenExpiresAtUtc,
+                    value.StepUpChallengeId));
         }
 
         if (result.Error ==
@@ -116,3 +118,6 @@ public static class LoginEndpoint
                 StatusCodes.Status400BadRequest);
     }
 }
+
+
+

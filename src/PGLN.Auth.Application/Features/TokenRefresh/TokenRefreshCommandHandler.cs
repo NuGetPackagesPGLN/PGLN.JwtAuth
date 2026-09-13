@@ -110,7 +110,7 @@ public sealed class TokenRefreshCommandHandler
                             existingToken.FamilyId,
                             cancellationToken);
 
-                var familyWasRevoked =
+                var stateChanged =
                     false;
 
                 foreach (var familyToken in familyTokens)
@@ -124,11 +124,29 @@ public sealed class TokenRefreshCommandHandler
                         now,
                         "RefreshTokenReuseDetected");
 
-                    familyWasRevoked =
+                    stateChanged =
                         true;
                 }
 
-                if (familyWasRevoked)
+                var compromisedSession =
+                    await _authSessionRepository
+                        .GetByIdAsync(
+                            existingToken.SessionId,
+                            cancellationToken);
+
+                if (
+                    compromisedSession is not null &&
+                    compromisedSession.IsActive)
+                {
+                    compromisedSession.Revoke(
+                        now,
+                        "RefreshTokenReuseDetected");
+
+                    stateChanged =
+                        true;
+                }
+
+                if (stateChanged)
                 {
                     await _unitOfWork
                         .SaveChangesAsync(
@@ -218,6 +236,7 @@ public sealed class TokenRefreshCommandHandler
                 replacement.ExpiresAtUtc));
     }
 }
+
 
 
 

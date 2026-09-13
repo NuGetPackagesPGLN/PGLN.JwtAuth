@@ -445,6 +445,128 @@ public sealed class DefaultEmailTemplateRenderer
             textBody,
             htmlBody);
     }
+    public EmailMessage RenderStepUpVerificationCode(
+        string email,
+        string code,
+        string? deviceName,
+        string? ipAddress,
+        string? userAgent,
+        DateTimeOffset expiresAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            email);
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            code);
+
+        const string subject =
+            "Verify your sign-in";
+
+        var displayDevice =
+            string.IsNullOrWhiteSpace(deviceName)
+                ? "Unknown device"
+                : deviceName;
+
+        var displayIpAddress =
+            string.IsNullOrWhiteSpace(ipAddress)
+                ? "Unknown"
+                : ipAddress;
+
+        var displayUserAgent =
+            string.IsNullOrWhiteSpace(userAgent)
+                ? "Unknown"
+                : userAgent;
+
+        var textBody =
+            $"""
+            We need to verify this sign-in to your PGLN Auth account.
+
+            Verification code:
+
+            {code}
+
+            Device:
+            {displayDevice}
+
+            IP address:
+            {displayIpAddress}
+
+            Browser / client:
+            {displayUserAgent}
+
+            This code expires at:
+            {expiresAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+
+            Do not share this code with anyone.
+
+            If you did not attempt to sign in,
+            you can ignore this email and secure your account.
+            """;
+
+        var htmlBody =
+            $"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport"
+                      content="width=device-width, initial-scale=1">
+                <title>Verify your sign-in</title>
+            </head>
+            <body>
+                <h1>Verify your sign-in</h1>
+
+                <p>
+                    We need to verify this sign-in to your
+                    PGLN Auth account.
+                </p>
+
+                <p>
+                    <strong>Verification code:</strong>
+                </p>
+
+                <p>
+                    <strong>{code}</strong>
+                </p>
+
+                <p>
+                    <strong>Device:</strong>
+                    {System.Net.WebUtility.HtmlEncode(displayDevice)}
+                </p>
+
+                <p>
+                    <strong>IP address:</strong>
+                    {System.Net.WebUtility.HtmlEncode(displayIpAddress)}
+                </p>
+
+                <p>
+                    <strong>Browser / client:</strong>
+                    {System.Net.WebUtility.HtmlEncode(displayUserAgent)}
+                </p>
+
+                <p>
+                    <strong>Expires:</strong>
+                    {expiresAtUtc:yyyy-MM-dd HH:mm:ss} UTC
+                </p>
+
+                <p>
+                    Do not share this code with anyone.
+                </p>
+
+                <p>
+                    If you did not attempt to sign in,
+                    you can ignore this email and secure your account.
+                </p>
+            </body>
+            </html>
+            """;
+
+        return CreateMessage(
+            email,
+            subject,
+            textBody,
+            htmlBody);
+    }
     public EmailMessage RenderAccountLocked(
         string email,
         DateTimeOffset lockedUntilUtc,
@@ -601,6 +723,7 @@ public sealed class DefaultEmailTemplateRenderer
             htmlBody,
             textBody);
     }}
+
 
 
 

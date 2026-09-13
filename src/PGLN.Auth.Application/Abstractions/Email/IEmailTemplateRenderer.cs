@@ -33,8 +33,17 @@ public interface IEmailTemplateRenderer
         string? userAgent,
         DateTimeOffset occurredAtUtc);
 
+    EmailMessage RenderStepUpVerificationCode(
+        string email,
+        string code,
+        string? deviceName,
+        string? ipAddress,
+        string? userAgent,
+        DateTimeOffset expiresAtUtc);
+
     EmailMessage RenderAccountLocked(
         string email,
         DateTimeOffset lockedUntilUtc,
         DateTimeOffset occurredAtUtc);
 }
+

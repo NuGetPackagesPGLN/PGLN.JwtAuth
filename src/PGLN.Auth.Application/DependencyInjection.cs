@@ -5,6 +5,7 @@ using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Features.Login;
+using PGLN.Auth.Application.Configuration;
 using PGLN.Auth.Application.Messaging;
 
 namespace PGLN.Auth.Application;
@@ -18,7 +19,8 @@ public static class DependencyInjection
         EmailDeliveryOptions? emailDeliveryOptions = null,
         RefreshTokenOptions? refreshTokenOptions = null,
         AccountLockoutOptions? accountLockoutOptions = null,
-        LoginEmailThrottleOptions? loginEmailThrottleOptions = null)
+        LoginEmailThrottleOptions? loginEmailThrottleOptions = null,
+        StepUpChallengeOptions? stepUpChallengeOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -36,6 +38,9 @@ public static class DependencyInjection
 
         accountLockoutOptions ??=
             new AccountLockoutOptions();
+
+        stepUpChallengeOptions ??=
+            new StepUpChallengeOptions();
 
         passwordPolicy.Validate();
         emailVerificationOptions.Validate();
@@ -57,6 +62,9 @@ public static class DependencyInjection
 
         services.AddSingleton(
             accountLockoutOptions);
+
+        services.AddSingleton(
+            stepUpChallengeOptions);
 
         loginEmailThrottleOptions ??=
             new LoginEmailThrottleOptions();
@@ -104,6 +112,7 @@ public static class DependencyInjection
         return services;
     }
 }
+
 
 
 

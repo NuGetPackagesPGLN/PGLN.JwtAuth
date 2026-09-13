@@ -23,7 +23,7 @@ public sealed class RefreshTokenEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client);
 
@@ -31,7 +31,7 @@ public sealed class RefreshTokenEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -50,11 +50,11 @@ public sealed class RefreshTokenEndpointHttpTests
 
         Assert.False(
             string.IsNullOrWhiteSpace(
-                body.RefreshToken));
+                body.RefreshToken!));
 
         Assert.NotEqual(
-            login.RefreshToken,
-            body.RefreshToken);
+            login.RefreshToken!,
+            body.RefreshToken!);
 
         Assert.True(
             body.AccessTokenExpiresAtUtc >
@@ -75,7 +75,7 @@ public sealed class RefreshTokenEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client);
 
@@ -83,7 +83,7 @@ public sealed class RefreshTokenEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -131,7 +131,7 @@ public sealed class RefreshTokenEndpointHttpTests
             oldToken.ReplacedByTokenId);
 
         Assert.NotEqual(
-            body.RefreshToken,
+            body.RefreshToken!,
             replacement.TokenHash);
     }
 
@@ -145,7 +145,7 @@ public sealed class RefreshTokenEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client);
 
@@ -153,7 +153,7 @@ public sealed class RefreshTokenEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -163,7 +163,7 @@ public sealed class RefreshTokenEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.Unauthorized,
@@ -188,7 +188,7 @@ public sealed class RefreshTokenEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
                 client);
 
@@ -197,7 +197,7 @@ public sealed class RefreshTokenEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -218,7 +218,7 @@ public sealed class RefreshTokenEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.Unauthorized,
@@ -356,88 +356,6 @@ public sealed class RefreshTokenEndpointHttpTests
             body);
     }
 
-    private static async Task<LoginResponse> LoginAsync(
-        HttpTestApplication application,
-        HttpClient client)
-    {
-        const string email =
-            "user@example.com";
-
-        const string password =
-            "SecretPassword123!";
-
-        await SeedConfirmedUserAsync(
-            application,
-            email,
-            password);
-
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "integration-test-device",
-                    "Integration Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var body =
-            await response.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            body);
-
-        return body;
-    }
-
-    private static async Task<User> SeedConfirmedUserAsync(
-        HttpTestApplication application,
-        string email,
-        string password)
-    {
-        await using var scope =
-            application.Application.Services
-                .CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
-
-        var passwordHasher =
-            scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher>();
-
-        var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    email),
-                passwordHasher.Hash(
-                    password),
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        user.ConfirmEmail(
-            now.AddHours(-1));
-
-        user.ClearDomainEvents();
-
-        dbContext.Users.Add(
-            user);
-
-        await dbContext.SaveChangesAsync();
-
-        return user;
-    }
-
     private static async Task SeedExpiredTokenAsync(
         HttpTestApplication application,
         string rawRefreshToken)
@@ -505,6 +423,8 @@ public sealed class RefreshTokenEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
+
 
 
 

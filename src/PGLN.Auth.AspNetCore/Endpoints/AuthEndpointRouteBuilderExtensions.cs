@@ -39,6 +39,8 @@ public static class AuthEndpointRouteBuilderExtensions
 
         group.MapLoginEndpoint();
 
+        group.MapVerifyStepUpEndpoint();
+
         group.MapRefreshTokenEndpoint();
 
         group.MapLogout();
@@ -65,5 +67,6 @@ public static class AuthEndpointRouteBuilderExtensions
         return group;
     }
 }
+
 
 

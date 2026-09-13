@@ -1,3 +1,4 @@
+using PGLN.Auth.Application.Configuration;
 using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Application.Abstractions.Authentication;
@@ -252,6 +253,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Test Device",
+                Now));
+
         var accessTokens =
             new FakeAccessTokenGenerator
             {
@@ -272,7 +284,9 @@ public sealed class LoginCommandHandlerTests
                 new FakeLoginAttemptRepository(),
                 new FakeRefreshTokenRepository(),
                 accessTokens,
-                refreshTokenGenerator);
+                refreshTokenGenerator,
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -319,6 +333,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Test Device",
+                Now));
+
         var repository =
             new FakeRefreshTokenRepository();
 
@@ -335,7 +360,9 @@ public sealed class LoginCommandHandlerTests
                 new FakeLoginAttemptRepository(),
                 repository,
                 new FakeAccessTokenGenerator(),
-                generator);
+                generator,
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -386,6 +413,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Test Device",
+                Now));
+
         var attempts =
             new FakeLoginAttemptRepository();
 
@@ -395,7 +433,9 @@ public sealed class LoginCommandHandlerTests
                 attempts,
                 new FakeRefreshTokenRepository(),
                 new FakeAccessTokenGenerator(),
-                new FakeRefreshTokenGenerator());
+                new FakeRefreshTokenGenerator(),
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -821,6 +861,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Test Device",
+                Now));
+
         var attempts =
             new FakeLoginAttemptRepository();
 
@@ -855,7 +906,9 @@ public sealed class LoginCommandHandlerTests
                         MaxFailedAttempts = 10,
                         Window =
                             TimeSpan.FromMinutes(5)
-                    });
+                    },
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -884,6 +937,17 @@ public sealed class LoginCommandHandlerTests
 
         users.Seed(
             user);
+
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Test Device",
+                Now));
 
         var attempts =
             new FakeLoginAttemptRepository();
@@ -919,7 +983,9 @@ public sealed class LoginCommandHandlerTests
                         MaxFailedAttempts = 10,
                         Window =
                             TimeSpan.FromMinutes(5)
-                    });
+                    },
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -990,8 +1056,8 @@ public sealed class LoginCommandHandlerTests
             LoginErrors.TooManyAttempts,
             result.Error);
     }
-    [Fact]
-    public async Task HandleAsync_WhenLoggingInFromNewDevice_ShouldPublishSecurityNotification()
+        [Fact]
+    public async Task HandleAsync_WhenLoggingInFromNewDevice_ShouldRequireStepUpVerification()
     {
         var user =
             CreateUser(
@@ -1032,44 +1098,56 @@ public sealed class LoginCommandHandlerTests
         Assert.True(
             result.IsSuccess);
 
+        Assert.Equal(
+            LoginStatus.StepUpRequired,
+            result.Value.Status);
+
+        Assert.Null(
+            result.Value.AccessToken);
+
+        Assert.Null(
+            result.Value.RefreshToken);
+
+        Assert.NotNull(
+            result.Value.StepUpChallengeId);
+
+        Assert.Empty(
+            sessions.Sessions);
+
         var integrationEvent =
             Assert.Single(
                 integrationEvents.Events);
 
-        var notification =
-            Assert.IsType<NewDeviceLoginNotificationRequested>(
+        var verificationRequest =
+            Assert.IsType<StepUpVerificationCodeRequested>(
                 integrationEvent);
 
         Assert.Equal(
             user.Id,
-            notification.UserId);
+            verificationRequest.UserId);
 
         Assert.Equal(
             user.Email.Value,
-            notification.Email);
-
-        Assert.Equal(
-            "device-hash-new",
-            notification.DeviceIdHash);
+            verificationRequest.Email);
 
         Assert.Equal(
             "Firefox on Linux",
-            notification.DeviceName);
+            verificationRequest.DeviceName);
 
         Assert.Equal(
             "192.168.1.25",
-            notification.IpAddress);
+            verificationRequest.IpAddress);
 
         Assert.Equal(
             "Firefox/1.0",
-            notification.UserAgent);
+            verificationRequest.UserAgent);
 
         Assert.Equal(
             Now,
-            notification.OccurredAtUtc);
+            verificationRequest.OccurredAtUtc);
     }
-    [Fact]
-    public async Task HandleAsync_WhenDeviceAlreadyHasActiveSession_ShouldNotPublishNewDeviceNotification()
+        [Fact]
+    public async Task HandleAsync_WhenDeviceAlreadyHasActiveSessionButIsNotTrusted_ShouldRequireStepUp()
     {
         var user =
             CreateUser(
@@ -1100,34 +1178,53 @@ public sealed class LoginCommandHandlerTests
         var integrationEvents =
             new FakeIntegrationEventPublisher();
 
-        var handler =
-            CreateHandler(
-                users,
-                new FakeLoginAttemptRepository(),
-                new FakeRefreshTokenRepository(),
-                new FakeAccessTokenGenerator(),
-                new FakeRefreshTokenGenerator(),
-                authSessionRepository: sessions,
-                integrationEventPublisher: integrationEvents);
-
         var result =
-            await handler.HandleAsync(
-                new LoginCommand(
-                    user.Email.Value,
-                    "correct-password",
-                    "device-hash-known",
-                    "Chrome on Windows",
-                    "127.0.0.1",
-                    "Chrome/2.0"));
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    new FakeRefreshTokenRepository(),
+                    new FakeAccessTokenGenerator(),
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository: sessions,
+                    integrationEventPublisher: integrationEvents)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-known",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "Chrome/2.0"));
 
         Assert.True(
             result.IsSuccess);
 
-        Assert.Empty(
-            integrationEvents.Events);
+        Assert.Equal(
+            LoginStatus.StepUpRequired,
+            result.Value.Status);
+
+        Assert.Null(
+            result.Value.AccessToken);
+
+        Assert.Null(
+            result.Value.RefreshToken);
+
+        Assert.Single(
+            sessions.Sessions);
+
+        Assert.Equal(
+            existingSession.Id,
+            sessions.Sessions.Single().Id);
+
+        var integrationEvent =
+            Assert.Single(
+                integrationEvents.Events);
+
+        Assert.IsType<StepUpVerificationCodeRequested>(
+            integrationEvent);
     }
-    [Fact]
-    public async Task HandleAsync_WhenPreviouslySeenDeviceHasRevokedSession_ShouldNotPublishNewDeviceNotification()
+        [Fact]
+    public async Task HandleAsync_WhenPreviouslySeenDeviceHasRevokedSessionAndIsNotTrusted_ShouldRequireStepUp()
     {
         var user =
             CreateUser(
@@ -1162,47 +1259,50 @@ public sealed class LoginCommandHandlerTests
         var integrationEvents =
             new FakeIntegrationEventPublisher();
 
-        var handler =
-            CreateHandler(
-                users,
-                new FakeLoginAttemptRepository(),
-                new FakeRefreshTokenRepository(),
-                new FakeAccessTokenGenerator(),
-                new FakeRefreshTokenGenerator(),
-                authSessionRepository: sessions,
-                integrationEventPublisher: integrationEvents);
-
         var result =
-            await handler.HandleAsync(
-                new LoginCommand(
-                    user.Email.Value,
-                    "correct-password",
-                    "device-hash-known",
-                    "Chrome on Windows",
-                    "127.0.0.1",
-                    "Chrome/2.0"));
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    new FakeRefreshTokenRepository(),
+                    new FakeAccessTokenGenerator(),
+                    new FakeRefreshTokenGenerator(),
+                    authSessionRepository: sessions,
+                    integrationEventPublisher: integrationEvents)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-known",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "Chrome/2.0"));
 
         Assert.True(
             result.IsSuccess);
 
-        Assert.Empty(
-            integrationEvents.Events);
+        Assert.Equal(
+            LoginStatus.StepUpRequired,
+            result.Value.Status);
+
+        Assert.Null(
+            result.Value.AccessToken);
+
+        Assert.Null(
+            result.Value.RefreshToken);
+
+        Assert.Single(
+            sessions.Sessions);
 
         Assert.Equal(
-            2,
-            sessions.Sessions.Count);
+            revokedSession.Id,
+            sessions.Sessions.Single().Id);
 
-        var newSession =
-            sessions.Sessions.Single(
-                session =>
-                    session.Id != revokedSession.Id);
+        var integrationEvent =
+            Assert.Single(
+                integrationEvents.Events);
 
-        Assert.Equal(
-            "device-hash-known",
-            newSession.DeviceIdHash);
-
-        Assert.False(
-            newSession.IsRevoked);
+        Assert.IsType<StepUpVerificationCodeRequested>(
+            integrationEvent);
     }
     [Fact]
     public async Task HandleAsync_WhenDeviceWasPreviouslyTrusted_ShouldTrustNewSession()
@@ -1288,8 +1388,8 @@ public sealed class LoginCommandHandlerTests
             DeviceTrustStatus.Trusted,
             newSession.DeviceTrustStatus);
     }
-    [Fact]
-    public async Task HandleAsync_WhenTrustedDeviceWasRevoked_ShouldNotTrustNewSession()
+        [Fact]
+    public async Task HandleAsync_WhenTrustedDeviceWasRevoked_ShouldRequireStepUpWithoutCreatingSession()
     {
         var user =
             CreateUser(
@@ -1361,23 +1461,27 @@ public sealed class LoginCommandHandlerTests
             result.IsSuccess);
 
         Assert.Equal(
-            2,
-            sessions.Sessions.Count);
+            LoginStatus.StepUpRequired,
+            result.Value.Status);
 
-        var newSession =
-            sessions.Sessions.Single(
-                session =>
-                    session.Id != revokedSession.Id);
+        Assert.Null(
+            result.Value.AccessToken);
 
-        Assert.False(
-            newSession.IsTrustedDevice);
+        Assert.Null(
+            result.Value.RefreshToken);
+
+        Assert.NotNull(
+            result.Value.StepUpChallengeId);
+
+        Assert.Single(
+            sessions.Sessions);
 
         Assert.Equal(
-            DeviceTrustStatus.Unknown,
-            newSession.DeviceTrustStatus);
+            revokedSession.Id,
+            sessions.Sessions.Single().Id);
     }
-    [Fact]
-    public async Task HandleAsync_WhenDeviceIsNotTrusted_ShouldLeaveSessionTrustUnknown()
+        [Fact]
+    public async Task HandleAsync_WhenDeviceIsNotTrusted_ShouldRequireStepUpWithoutCreatingSession()
     {
         var user =
             CreateUser(
@@ -1414,16 +1518,292 @@ public sealed class LoginCommandHandlerTests
         Assert.True(
             result.IsSuccess);
 
+        Assert.Equal(
+            LoginStatus.StepUpRequired,
+            result.Value.Status);
+
+        Assert.Null(
+            result.Value.AccessToken);
+
+        Assert.Null(
+            result.Value.RefreshToken);
+
+        Assert.NotNull(
+            result.Value.StepUpChallengeId);
+
+        Assert.Empty(
+            sessions.Sessions);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenDeviceIsUntrusted_ShouldRequireStepUpWithoutIssuingCredentials()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var challenges =
+            new FakeStepUpChallengeRepository();
+
+        var codeGenerator =
+            new FakeStepUpCodeGenerator();
+
+        var codeProtector =
+            new FakeStepUpCodeProtector();
+
+        var integrationEvents =
+            new FakeIntegrationEventPublisher();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    refreshTokens,
+                    accessTokenGenerator,
+                    refreshTokenGenerator,
+                    authSessionRepository:
+                        sessions,
+                    trustedDeviceRepository:
+                        new FakeTrustedDeviceRepository(),
+                    stepUpChallengeRepository:
+                        challenges,
+                    stepUpCodeGenerator:
+                        codeGenerator,
+                    stepUpCodeProtector:
+                        codeProtector,
+                    integrationEventPublisher:
+                        integrationEvents)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-untrusted",
+                        "Firefox on Linux",
+                        "192.168.1.25",
+                        "Firefox/1.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            LoginStatus.StepUpRequired,
+            result.Value.Status);
+
+        Assert.Equal(
+            user.Id.Value,
+            result.Value.UserId);
+
+        Assert.Equal(
+            user.Email.Value,
+            result.Value.Email);
+
+        Assert.Null(
+            result.Value.AccessToken);
+
+        Assert.Null(
+            result.Value.AccessTokenExpiresAtUtc);
+
+        Assert.Null(
+            result.Value.RefreshToken);
+
+        Assert.Null(
+            result.Value.RefreshTokenExpiresAtUtc);
+
+        Assert.NotNull(
+            result.Value.StepUpChallengeId);
+
+        Assert.Empty(
+            sessions.Sessions);
+
+        Assert.Empty(
+            refreshTokens.Tokens);
+
+        Assert.Equal(
+            0,
+            accessTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            0,
+            refreshTokenGenerator.GenerateCallCount);
+
+        var challenge =
+            Assert.Single(
+                challenges.Challenges);
+
+        Assert.Equal(
+            result.Value.StepUpChallengeId,
+            challenge.Id.Value);
+
+        Assert.Equal(
+            user.Id,
+            challenge.UserId);
+
+        Assert.Equal(
+            "device-hash-untrusted",
+            challenge.DeviceIdHash);
+
+        Assert.Equal(
+            "protected::123456",
+            challenge.CodeHash);
+
+        Assert.Equal(
+            1,
+            codeGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            1,
+            codeProtector.ProtectCallCount);
+
+        var integrationEvent =
+            Assert.Single(
+                integrationEvents.Events);
+
+        var verificationRequest =
+            Assert.IsType<StepUpVerificationCodeRequested>(
+                integrationEvent);
+
+        Assert.Equal(
+            challenge.Id,
+            verificationRequest.ChallengeId);
+
+        Assert.Equal(
+            "123456",
+            verificationRequest.Code);
+
+        Assert.Equal(
+            user.Email.Value,
+            verificationRequest.Email);
+    }
+    [Fact]
+    public async Task HandleAsync_WhenDeviceIsTrusted_ShouldCompleteAuthenticationAndIssueCredentials()
+    {
+        var user =
+            CreateUser(
+                confirmed: true);
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-trusted",
+                "Chrome on Windows",
+                Now));
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    new FakeLoginAttemptRepository(),
+                    refreshTokens,
+                    accessTokenGenerator,
+                    refreshTokenGenerator,
+                    authSessionRepository:
+                        sessions,
+                    trustedDeviceRepository:
+                        trustedDevices)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "correct-password",
+                        "device-hash-trusted",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "Chrome/2.0"));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.Equal(
+            LoginStatus.AuthenticationComplete,
+            result.Value.Status);
+
+        Assert.Equal(
+            user.Id.Value,
+            result.Value.UserId);
+
+        Assert.Equal(
+            user.Email.Value,
+            result.Value.Email);
+
+        Assert.Equal(
+            "fake-access-token",
+            result.Value.AccessToken);
+
+        Assert.NotNull(
+            result.Value.AccessTokenExpiresAtUtc);
+
+        Assert.Equal(
+            "raw-refresh-token",
+            result.Value.RefreshToken);
+
+        Assert.NotNull(
+            result.Value.RefreshTokenExpiresAtUtc);
+
+        Assert.Null(
+            result.Value.StepUpChallengeId);
+
         var session =
             Assert.Single(
                 sessions.Sessions);
 
-        Assert.False(
-            session.IsTrustedDevice);
+        Assert.Equal(
+            user.Id,
+            session.UserId);
 
         Assert.Equal(
-            DeviceTrustStatus.Unknown,
-            session.DeviceTrustStatus);
+            "device-hash-trusted",
+            session.DeviceIdHash);
+
+        Assert.True(
+            session.IsTrustedDevice);
+
+        Assert.Single(
+            refreshTokens.Tokens);
+
+        Assert.Equal(
+            1,
+            accessTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            1,
+            refreshTokenGenerator.GenerateCallCount);
     }
     private static LoginCommandHandler CreateHandler(
         FakeUserRepository userRepository,
@@ -1433,11 +1813,15 @@ public sealed class LoginCommandHandlerTests
         FakeRefreshTokenGenerator refreshTokenGenerator,
         FakeAuthSessionRepository? authSessionRepository = null,
         FakeTrustedDeviceRepository? trustedDeviceRepository = null,
+        FakeStepUpChallengeRepository? stepUpChallengeRepository = null,
+        FakeStepUpCodeGenerator? stepUpCodeGenerator = null,
+        FakeStepUpCodeProtector? stepUpCodeProtector = null,
         FakeLoginPasswordHasher? passwordHasher = null,
         FakeIntegrationEventPublisher? integrationEventPublisher = null,
         FakeUnitOfWork? unitOfWork = null,
         AccountLockoutOptions? accountLockoutOptions = null,
-        LoginEmailThrottleOptions? loginEmailThrottleOptions = null)
+        LoginEmailThrottleOptions? loginEmailThrottleOptions = null,
+        StepUpChallengeOptions? stepUpChallengeOptions = null)
     {
         return new LoginCommandHandler(
             userRepository,
@@ -1447,6 +1831,12 @@ public sealed class LoginCommandHandlerTests
                 new FakeAuthSessionRepository(),
             trustedDeviceRepository ??
                 new FakeTrustedDeviceRepository(),
+            stepUpChallengeRepository ??
+                new FakeStepUpChallengeRepository(),
+            stepUpCodeGenerator ??
+                new FakeStepUpCodeGenerator(),
+            stepUpCodeProtector ??
+                new FakeStepUpCodeProtector(),
             passwordHasher ??
                 new FakeLoginPasswordHasher(),
             accessTokenGenerator,
@@ -1462,7 +1852,9 @@ public sealed class LoginCommandHandlerTests
             accountLockoutOptions ??
                 new AccountLockoutOptions(),
             loginEmailThrottleOptions ??
-                new LoginEmailThrottleOptions());
+                new LoginEmailThrottleOptions(),
+            stepUpChallengeOptions ??
+                new StepUpChallengeOptions());
     }
 
     private static User CreateUser(
@@ -1502,6 +1894,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Test Device",
+                Now));
+
         var sessions =
             new FakeAuthSessionRepository();
 
@@ -1515,7 +1918,9 @@ public sealed class LoginCommandHandlerTests
                     refreshTokens,
                     new FakeAccessTokenGenerator(),
                     new FakeRefreshTokenGenerator(),
-                    authSessionRepository: sessions)
+                    authSessionRepository: sessions,
+                    trustedDeviceRepository:
+                        trustedDevices)
                 .HandleAsync(
                     new LoginCommand(
                         user.Email.Value,
@@ -1573,6 +1978,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Chrome on Windows",
+                Now));
+
         var sessions =
             new FakeAuthSessionRepository();
 
@@ -1599,7 +2015,9 @@ public sealed class LoginCommandHandlerTests
                 refreshTokens,
                 new FakeAccessTokenGenerator(),
                 new FakeRefreshTokenGenerator(),
-                authSessionRepository: sessions);
+                authSessionRepository: sessions,
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -1657,6 +2075,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-002",
+                "Safari on iPhone",
+                Now));
+
         var sessions =
             new FakeAuthSessionRepository();
 
@@ -1683,7 +2112,9 @@ public sealed class LoginCommandHandlerTests
                 refreshTokens,
                 new FakeAccessTokenGenerator(),
                 new FakeRefreshTokenGenerator(),
-                authSessionRepository: sessions);
+                authSessionRepository: sessions,
+                trustedDeviceRepository:
+                    trustedDevices);
 
         var result =
             await handler.HandleAsync(
@@ -1748,6 +2179,17 @@ public sealed class LoginCommandHandlerTests
         users.Seed(
             user);
 
+        var trustedDevices =
+            new FakeTrustedDeviceRepository();
+
+        trustedDevices.Seed(
+            TrustedDevice.Create(
+                TrustedDeviceId.New(),
+                user.Id,
+                "device-hash-001",
+                "Chrome on Windows",
+                Now));
+
         var sessions =
             new FakeAuthSessionRepository();
 
@@ -1765,7 +2207,9 @@ public sealed class LoginCommandHandlerTests
                     accessTokenGenerator,
                     new FakeRefreshTokenGenerator(),
                     authSessionRepository:
-                        sessions)
+                        sessions,
+                    trustedDeviceRepository:
+                        trustedDevices)
                 .HandleAsync(
                     new LoginCommand(
                         user.Email.Value,
@@ -1810,6 +2254,23 @@ public sealed class LoginCommandHandlerTests
             refreshToken.SessionId,
             accessTokenGenerator.LastSessionId);
     }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

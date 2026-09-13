@@ -61,6 +61,10 @@ public static class DependencyInjection
             TrustedDeviceRepository>();
 
         services.AddScoped<
+            IStepUpChallengeRepository,
+            StepUpChallengeRepository>();
+
+        services.AddScoped<
             ILoginAttemptRepository,
             LoginAttemptRepository>();
 
@@ -86,6 +90,7 @@ public static class DependencyInjection
         return services;
     }
 }
+
 
 
 

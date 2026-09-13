@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Features.Login;
@@ -81,6 +82,10 @@ internal sealed class HttpTestApplication
                         connection));
 
         builder.Services.AddSingleton<
+            IStepUpCodeGenerator,
+            HttpTestStepUpCodeGenerator>();
+
+        builder.Services.AddSingleton<
             IIntegrationEventPayloadProtector,
             HttpTestPayloadProtector>();
 
@@ -141,7 +146,10 @@ internal sealed class HttpTestApplication
                         signingKey),
 
                 ["PGLNAuth:Jwt:AccessTokenLifetime"] =
-                    "00:15:00"
+                    "00:15:00",
+
+                ["PGLNAuth:StepUpSecurity:HmacSecret"] =
+                    "integration-test-step-up-hmac-secret-32-characters-minimum"
             });
     }
 
@@ -154,6 +162,9 @@ internal sealed class HttpTestApplication
         await _connection.DisposeAsync();
     }
 }
+
+
+
 
 
 

@@ -43,7 +43,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             EmailAddress,
             Password);
@@ -52,7 +52,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 Password,
@@ -118,12 +118,12 @@ public sealed class GetTrustedDevicesEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "first@example.com",
             Password);
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "second@example.com",
             Password);
@@ -132,7 +132,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
             application.CreateClient();
 
         var firstLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "first@example.com",
                 Password,
@@ -154,7 +154,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
             firstTrustResponse.StatusCode);
 
         var secondLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "second@example.com",
                 Password,
@@ -210,7 +210,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             EmailAddress,
             Password);
@@ -219,7 +219,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 Password,
@@ -250,78 +250,6 @@ public sealed class GetTrustedDevicesEndpointHttpTests
             devices);
     }
 
-    private static async Task<LoginResponse> LoginAsync(
-        HttpClient client,
-        string email,
-        string password,
-        string deviceIdHash,
-        string? deviceName)
-    {
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    deviceIdHash,
-                    deviceName));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var body =
-            await response.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            body);
-
-        return body;
-    }
-
-    private static async Task<User> SeedConfirmedUserAsync(
-        HttpTestApplication application,
-        string email,
-        string password)
-    {
-        await using var scope =
-            application.Application.Services
-                .CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
-
-        var passwordHasher =
-            scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher>();
-
-        var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    email),
-                passwordHasher.Hash(
-                    password),
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        user.ConfirmEmail(
-            now.AddHours(-1));
-
-        user.ClearDomainEvents();
-
-        dbContext.Users.Add(
-            user);
-
-        await dbContext.SaveChangesAsync();
-
-        return user;
-    }
 }
+
 

@@ -94,6 +94,19 @@ internal sealed class TestEmailTemplateRenderer
             "Your email address was changed",
             $"<p>{oldEmail} -> {newEmail}</p>",
             $"{oldEmail} -> {newEmail}");
-    }}
-
-
+    }
+    public EmailMessage RenderStepUpVerificationCode(
+        string email,
+        string code,
+        string? deviceName,
+        string? ipAddress,
+        string? userAgent,
+        DateTimeOffset expiresAtUtc)
+    {
+        return new EmailMessage(
+            email,
+            "Verify your sign-in",
+            $"Code: {code}",
+            $"<p>Code: {code}</p>");
+    }
+}

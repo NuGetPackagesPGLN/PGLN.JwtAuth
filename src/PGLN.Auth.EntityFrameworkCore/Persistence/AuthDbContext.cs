@@ -4,6 +4,7 @@ using PGLN.Auth.Domain.LoginAttempts;
 using PGLN.Auth.Domain.PasswordResets;
 using PGLN.Auth.Domain.RefreshTokens;
 using PGLN.Auth.Domain.Sessions;
+using PGLN.Auth.Domain.StepUpChallenges;
 using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Domain.VerificationTokens;
@@ -41,6 +42,9 @@ public sealed class AuthDbContext
     public DbSet<TrustedDevice> TrustedDevices =>
         Set<TrustedDevice>();
 
+    public DbSet<StepUpChallenge> StepUpChallenges =>
+        Set<StepUpChallenge>();
+
     public DbSet<PasswordResetToken> PasswordResetTokens =>
         Set<PasswordResetToken>();
 
@@ -57,5 +61,6 @@ public sealed class AuthDbContext
             typeof(AuthDbContext).Assembly);
     }
 }
+
 
 

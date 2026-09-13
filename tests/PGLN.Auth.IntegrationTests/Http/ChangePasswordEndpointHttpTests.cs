@@ -48,7 +48,7 @@ public sealed class ChangePasswordEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             EmailAddress,
             CurrentPassword);
@@ -57,7 +57,7 @@ public sealed class ChangePasswordEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 CurrentPassword);
@@ -85,7 +85,7 @@ public sealed class ChangePasswordEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             EmailAddress,
             CurrentPassword);
@@ -94,7 +94,7 @@ public sealed class ChangePasswordEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 CurrentPassword);
@@ -122,7 +122,7 @@ public sealed class ChangePasswordEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             EmailAddress,
             CurrentPassword);
@@ -131,7 +131,7 @@ public sealed class ChangePasswordEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 CurrentPassword);
@@ -160,7 +160,7 @@ public sealed class ChangePasswordEndpointHttpTests
             await HttpTestApplication.CreateAsync();
 
         var user =
-            await SeedConfirmedUserAsync(
+            await HttpAuthenticationHelper.SeedConfirmedUserAsync(
                 application,
                 EmailAddress,
                 CurrentPassword);
@@ -169,7 +169,7 @@ public sealed class ChangePasswordEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 CurrentPassword);
@@ -225,7 +225,7 @@ public sealed class ChangePasswordEndpointHttpTests
             await HttpTestApplication.CreateAsync();
 
         var user =
-            await SeedConfirmedUserAsync(
+            await HttpAuthenticationHelper.SeedConfirmedUserAsync(
                 application,
                 EmailAddress,
                 CurrentPassword);
@@ -234,7 +234,7 @@ public sealed class ChangePasswordEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 EmailAddress,
                 CurrentPassword);
@@ -285,76 +285,6 @@ public sealed class ChangePasswordEndpointHttpTests
             });
     }
 
-    private static async Task<LoginResponse> LoginAsync(
-        HttpClient client,
-        string email,
-        string password)
-    {
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "change-password-test-device",
-                    "Integration Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var body =
-            await response.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            body);
-
-        return body;
-    }
-
-    private static async Task<User> SeedConfirmedUserAsync(
-        HttpTestApplication application,
-        string email,
-        string password)
-    {
-        await using var scope =
-            application.Application.Services
-                .CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
-
-        var passwordHasher =
-            scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher>();
-
-        var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    email),
-                passwordHasher.Hash(
-                    password),
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        user.ConfirmEmail(
-            now.AddHours(-1));
-
-        user.ClearDomainEvents();
-
-        dbContext.Users.Add(
-            user);
-
-        await dbContext.SaveChangesAsync();
-
-        return user;
-    }
 }
+
 

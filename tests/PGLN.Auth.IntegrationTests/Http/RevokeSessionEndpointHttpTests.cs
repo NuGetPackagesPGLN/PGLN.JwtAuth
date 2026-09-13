@@ -43,7 +43,7 @@ public sealed class RevokeSessionEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "user@example.com",
             Password);
@@ -52,7 +52,7 @@ public sealed class RevokeSessionEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "user@example.com",
                 Password,
@@ -98,7 +98,7 @@ public sealed class RevokeSessionEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "user@example.com",
             Password);
@@ -107,7 +107,7 @@ public sealed class RevokeSessionEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "user@example.com",
                 Password,
@@ -194,12 +194,12 @@ public sealed class RevokeSessionEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "first@example.com",
             Password);
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "second@example.com",
             Password);
@@ -208,7 +208,7 @@ public sealed class RevokeSessionEndpointHttpTests
             application.CreateClient();
 
         var firstUserLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "first@example.com",
                 Password,
@@ -216,7 +216,7 @@ public sealed class RevokeSessionEndpointHttpTests
                 "First Device");
 
         var secondUserLogin =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "second@example.com",
                 Password,
@@ -263,7 +263,7 @@ public sealed class RevokeSessionEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        await SeedConfirmedUserAsync(
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
             application,
             "user@example.com",
             Password);
@@ -272,7 +272,7 @@ public sealed class RevokeSessionEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
                 client,
                 "user@example.com",
                 Password,
@@ -293,77 +293,5 @@ public sealed class RevokeSessionEndpointHttpTests
             response.StatusCode);
     }
 
-    private static async Task<LoginResponse> LoginAsync(
-        HttpClient client,
-        string email,
-        string password,
-        string deviceIdHash,
-        string? deviceName)
-    {
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    deviceIdHash,
-                    deviceName));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var body =
-            await response.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            body);
-
-        return body;
-    }
-
-    private static async Task<User> SeedConfirmedUserAsync(
-        HttpTestApplication application,
-        string email,
-        string password)
-    {
-        await using var scope =
-            application.Application.Services
-                .CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
-
-        var passwordHasher =
-            scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher>();
-
-        var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    email),
-                passwordHasher.Hash(
-                    password),
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        user.ConfirmEmail(
-            now.AddHours(-1));
-
-        user.ClearDomainEvents();
-
-        dbContext.Users.Add(
-            user);
-
-        await dbContext.SaveChangesAsync();
-
-        return user;
-    }
 }
+

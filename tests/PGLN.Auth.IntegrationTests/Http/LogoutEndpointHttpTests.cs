@@ -24,15 +24,17 @@ public sealed class LogoutEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
-                client);
+                client,
+                email:
+                    "logout-user@example.com");
 
         var response =
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -49,15 +51,17 @@ public sealed class LogoutEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
-                client);
+                client,
+                email:
+                    "logout-user@example.com");
 
         var logoutResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -99,15 +103,17 @@ public sealed class LogoutEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
-                client);
+                client,
+                email:
+                    "logout-user@example.com");
 
         var logoutResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -117,7 +123,7 @@ public sealed class LogoutEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/refresh",
                 new RefreshTokenRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.Unauthorized,
@@ -142,9 +148,11 @@ public sealed class LogoutEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
-                client);
+                client,
+                email:
+                    "logout-user@example.com");
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
@@ -163,7 +171,7 @@ public sealed class LogoutEndpointHttpTests
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -207,21 +215,23 @@ public sealed class LogoutEndpointHttpTests
             application.CreateClient();
 
         var login =
-            await LoginAsync(
+            await HttpAuthenticationHelper.LoginAsync(
                 application,
-                client);
+                client,
+                email:
+                    "logout-user@example.com");
 
         var first =
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         var second =
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
                 new LogoutRequest(
-                    login.RefreshToken));
+                    login.RefreshToken!));
 
         Assert.Equal(
             HttpStatusCode.NoContent,
@@ -277,86 +287,6 @@ public sealed class LogoutEndpointHttpTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
-    }
-
-    private static async Task<LoginResponse> LoginAsync(
-        HttpTestApplication application,
-        HttpClient client)
-    {
-        const string email =
-            "logout-user@example.com";
-
-        const string password =
-            "SecretPassword123!";
-
-        await SeedConfirmedUserAsync(
-            application,
-            email,
-            password);
-
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "integration-test-device",
-                    "Integration Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
-
-        var body =
-            await response.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            body);
-
-        return body;
-    }
-
-    private static async Task SeedConfirmedUserAsync(
-        HttpTestApplication application,
-        string email,
-        string password)
-    {
-        await using var scope =
-            application.Application.Services
-                .CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider
-                .GetRequiredService<AuthDbContext>();
-
-        var passwordHasher =
-            scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher>();
-
-        var now =
-            DateTimeOffset.UtcNow;
-
-        var user =
-            User.Register(
-                UserId.New(),
-                Email.Create(
-                    email),
-                passwordHasher.Hash(
-                    password),
-                now.AddDays(-1));
-
-        user.ClearDomainEvents();
-
-        user.ConfirmEmail(
-            now.AddHours(-1));
-
-        user.ClearDomainEvents();
-
-        dbContext.Users.Add(
-            user);
-
-        await dbContext.SaveChangesAsync();
     }
 
     private static async Task SeedExpiredTokenAsync(
@@ -426,6 +356,8 @@ public sealed class LogoutEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
+
+
 
 
 

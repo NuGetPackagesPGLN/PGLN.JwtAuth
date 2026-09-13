@@ -123,7 +123,7 @@ public sealed class TokenRefreshCommandHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithRevokedToken_ShouldReturnRevokedToken()
+    public async Task HandleAsync_WithReusedRotatedToken_ShouldReturnRevokedToken()
     {
         var user =
             CreateUser();
@@ -188,7 +188,7 @@ public sealed class TokenRefreshCommandHandlerTests
             accessTokenGenerator.GenerateCallCount);
 
         Assert.Equal(
-            0,
+            1,
             unitOfWork.SaveChangesCallCount);
     }
 
@@ -512,7 +512,14 @@ public sealed class TokenRefreshCommandHandlerTests
 
         if (authSessionRepository is null)
         {
-            foreach (var refreshToken in refreshTokenRepository.Tokens)
+            foreach (
+                var refreshToken in refreshTokenRepository.Tokens
+                    .GroupBy(
+                        token =>
+                            token.SessionId)
+                    .Select(
+                        group =>
+                            group.First()))
             {
                 sessions.Seed(
                     AuthSession.Create(
@@ -679,6 +686,22 @@ public sealed class TokenRefreshCommandHandlerTests
         repository.Seed(
             activeReplacement);
 
+        var session =
+            AuthSession.Create(
+                rotatedToken.SessionId,
+                user.Id,
+                "device-001",
+                "Test Device",
+                "127.0.0.1",
+                "PGLN.Auth.Tests",
+                Now.AddDays(-3));
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        sessions.Seed(
+            session);
+
         var unitOfWork =
             new FakeUnitOfWork();
 
@@ -694,7 +717,8 @@ public sealed class TokenRefreshCommandHandlerTests
                     users,
                     refreshTokenGenerator,
                     accessTokenGenerator,
-                    unitOfWork)
+                    unitOfWork,
+                    sessions)
                 .HandleAsync(
                     new TokenRefreshCommand(
                         "raw-refresh-token"));
@@ -716,6 +740,17 @@ public sealed class TokenRefreshCommandHandlerTests
         Assert.Equal(
             Now,
             activeReplacement.RevokedAtUtc);
+
+        Assert.True(
+            session.IsRevoked);
+
+        Assert.Equal(
+            Now,
+            session.RevokedAtUtc);
+
+        Assert.Equal(
+            "RefreshTokenReuseDetected",
+            session.RevocationReason);
 
         Assert.Equal(
             1,
@@ -891,7 +926,7 @@ public sealed class TokenRefreshCommandHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithReusedRotatedToken_WhenFamilyAlreadyRevoked_ShouldNotSaveAgain()
+    public async Task HandleAsync_WithReusedRotatedToken_WhenFamilyAlreadyRevoked_ShouldRevokeSession()
     {
         var user =
             CreateUser();
@@ -962,7 +997,7 @@ public sealed class TokenRefreshCommandHandlerTests
             result.Error);
 
         Assert.Equal(
-            0,
+            1,
             unitOfWork.SaveChangesCallCount);
     }
 
@@ -1228,7 +1263,119 @@ public sealed class TokenRefreshCommandHandlerTests
             0,
             unitOfWork.SaveChangesCallCount);
     }
-}
+
+    [Fact]
+    public async Task HandleAsync_WithReusedRotatedToken_WhenFamilyAndSessionAlreadyRevoked_ShouldNotSaveAgain()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var familyId =
+            RefreshTokenFamilyId.New();
+
+        var sessionId =
+            AuthSessionId.New();
+
+        var rotatedToken =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                sessionId,
+                "hashed::raw-refresh-token",
+                Now.AddDays(-2),
+                Now.AddDays(28));
+
+        var replacement =
+            RefreshToken.Create(
+                RefreshTokenId.New(),
+                familyId,
+                user.Id,
+                sessionId,
+                "hashed::replacement",
+                Now.AddDays(-1),
+                Now.AddDays(29));
+
+        rotatedToken.Rotate(
+            replacement.Id,
+            Now.AddDays(-1));
+
+        replacement.Revoke(
+            Now.AddMinutes(-5),
+            "RefreshTokenReuseDetected");
+
+        var session =
+            AuthSession.Create(
+                sessionId,
+                user.Id,
+                "device-001",
+                "Test Device",
+                "127.0.0.1",
+                "PGLN.Auth.Tests",
+                Now.AddDays(-3));
+
+        session.Revoke(
+            Now.AddMinutes(-5),
+            "RefreshTokenReuseDetected");
+
+        var repository =
+            new FakeRefreshTokenRepository();
+
+        repository.Seed(
+            rotatedToken);
+
+        repository.Seed(
+            replacement);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        sessions.Seed(
+            session);
+
+        var unitOfWork =
+            new FakeUnitOfWork();
+
+        var result =
+            await CreateHandler(
+                    repository,
+                    users,
+                    unitOfWork:
+                        unitOfWork,
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    new TokenRefreshCommand(
+                        "raw-refresh-token"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            TokenRefreshErrors.RevokedToken,
+            result.Error);
+
+        Assert.True(
+            session.IsRevoked);
+
+        Assert.True(
+            replacement.IsRevoked);
+
+        Assert.Equal(
+            0,
+            unitOfWork.SaveChangesCallCount);
+    }}
+
+
+
+
+
 
 
 

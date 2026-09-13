@@ -15,7 +15,7 @@ namespace PGLN.Auth.IntegrationTests.Http;
 public sealed class LoginEndpointHttpTests
 {
     [Fact]
-    public async Task Login_WithValidConfirmedUser_ShouldReturn200AndTokens()
+    public async Task Login_WithValidConfirmedUserOnUntrustedDevice_ShouldRequireStepUp()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
@@ -54,26 +54,36 @@ public sealed class LoginEndpointHttpTests
             body);
 
         Assert.Equal(
+            "StepUpRequired",
+            body.Status);
+
+        Assert.Equal(
             "user@example.com",
             body.Email);
 
-        Assert.False(
-            string.IsNullOrWhiteSpace(
-                body.AccessToken));
+        Assert.NotEqual(
+            Guid.Empty,
+            body.UserId);
 
-        Assert.False(
-            string.IsNullOrWhiteSpace(
-                body.RefreshToken));
+        Assert.NotNull(
+            body.StepUpChallengeId);
 
-        Assert.True(
-            body.AccessTokenExpiresAtUtc >
-            DateTimeOffset.UtcNow);
+        Assert.NotEqual(
+            Guid.Empty,
+            body.StepUpChallengeId.Value);
 
-        Assert.True(
-            body.RefreshTokenExpiresAtUtc >
+        Assert.Null(
+            body.AccessToken);
+
+        Assert.Null(
             body.AccessTokenExpiresAtUtc);
-    }
 
+        Assert.Null(
+            body.RefreshToken);
+
+        Assert.Null(
+            body.RefreshTokenExpiresAtUtc);
+    }
     [Fact]
     public async Task Login_WithWrongPassword_ShouldReturn401()
     {
@@ -164,9 +174,8 @@ public sealed class LoginEndpointHttpTests
             HttpStatusCode.Forbidden,
             response.StatusCode);
     }
-
     [Fact]
-    public async Task Login_WithValidCredentials_ShouldPersistSuccessfulAttemptAndRefreshToken()
+    public async Task Login_WithValidCredentialsOnUntrustedDevice_ShouldPersistStepUpChallengeWithoutSessionOrTokens()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
@@ -205,6 +214,19 @@ public sealed class LoginEndpointHttpTests
         Assert.NotNull(
             body);
 
+        Assert.Equal(
+            "StepUpRequired",
+            body.Status);
+
+        Assert.NotNull(
+            body.StepUpChallengeId);
+
+        Assert.Null(
+            body.AccessToken);
+
+        Assert.Null(
+            body.RefreshToken);
+
         await using var scope =
             application.Application.Services
                 .CreateAsyncScope();
@@ -213,30 +235,34 @@ public sealed class LoginEndpointHttpTests
             scope.ServiceProvider
                 .GetRequiredService<AuthDbContext>();
 
-        var attempt =
+        Assert.Empty(
             await dbContext.LoginAttempts
-                .SingleAsync();
+                .ToListAsync());
 
-        Assert.True(
-            attempt.Succeeded);
+        var challenge =
+            await dbContext.StepUpChallenges
+                .SingleAsync();
 
         Assert.Equal(
             user.Id,
-            attempt.UserId);
+            challenge.UserId);
 
-        var refreshToken =
+        Assert.Equal(
+            body.StepUpChallengeId.Value,
+            challenge.Id.Value);
+
+        Assert.Equal(
+            "integration-test-device",
+            challenge.DeviceIdHash);
+
+        Assert.Empty(
             await dbContext.RefreshTokens
-                .SingleAsync();
+                .ToListAsync());
 
-        Assert.Equal(
-            user.Id,
-            refreshToken.UserId);
-
-        Assert.NotEqual(
-            body.RefreshToken,
-            refreshToken.TokenHash);
+        Assert.Empty(
+            await dbContext.AuthSessions
+                .ToListAsync());
     }
-
     [Fact]
     public async Task Login_WhenMaximumFailedAttemptsReached_ShouldPersistLockout()
     {
@@ -649,6 +675,11 @@ public sealed class LoginEndpointHttpTests
         return user;
     }
 }
+
+
+
+
+
 
 
 

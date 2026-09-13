@@ -77,6 +77,20 @@ internal sealed class FakeEmailTemplateRenderer
             $"{deviceName} | {ipAddress} | {userAgent} | {occurredAtUtc:O}");
     }
 
+    public EmailMessage RenderStepUpVerificationCode(
+        string email,
+        string code,
+        string? deviceName,
+        string? ipAddress,
+        string? userAgent,
+        DateTimeOffset expiresAtUtc)
+    {
+        return new EmailMessage(
+            email,
+            "Verify your sign-in",
+            $"<p>{code}</p>",
+            code);
+    }
     public EmailMessage RenderAccountLocked(
         string email,
         DateTimeOffset lockedUntilUtc,
@@ -100,5 +114,6 @@ internal sealed class FakeEmailTemplateRenderer
             $"<p>{oldEmail} -> {newEmail}</p>",
             $"{oldEmail} -> {newEmail}");
     }}
+
 
 
