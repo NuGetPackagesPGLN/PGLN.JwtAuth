@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Features.StepUp.VerifyStepUpChallenge;
+using PGLN.Auth.AspNetCore.RateLimiting;
 using PGLN.Auth.Contracts.Authentication;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Authentication;
@@ -12,9 +13,12 @@ public static class VerifyStepUpEndpoint
     public static RouteHandlerBuilder MapVerifyStepUpEndpoint(
         this IEndpointRouteBuilder endpoints)
     {
-        return endpoints.MapPost(
-            "/verify-step-up",
-            HandleAsync);
+        return endpoints
+            .MapPost(
+                "/verify-step-up",
+                HandleAsync)
+            .RequireRateLimiting(
+                StepUpRateLimitOptions.PolicyName);
     }
 
     private static async Task<IResult> HandleAsync(

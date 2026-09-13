@@ -17,7 +17,8 @@ public static class AuthServiceCollectionExtensions
     public static IServiceCollection AddPGLNAuthAspNetCore(
         this IServiceCollection services,
         IConfiguration configuration,
-        LoginRateLimitOptions? loginRateLimitOptions = null)
+        LoginRateLimitOptions? loginRateLimitOptions = null,
+        StepUpRateLimitOptions? stepUpRateLimitOptions = null)
     {
         ArgumentNullException.ThrowIfNull(
             services);
@@ -161,6 +162,14 @@ public static class AuthServiceCollectionExtensions
         services.AddSingleton(
             loginRateLimitOptions);
 
+        stepUpRateLimitOptions ??=
+            new StepUpRateLimitOptions();
+
+        stepUpRateLimitOptions.Validate();
+
+        services.AddSingleton(
+            stepUpRateLimitOptions);
+
         services.AddRateLimiter(
             options =>
             {
@@ -191,6 +200,39 @@ public static class AuthServiceCollectionExtensions
 
                                         QueueLimit =
                                             loginRateLimitOptions.QueueLimit,
+
+                                        QueueProcessingOrder =
+                                            QueueProcessingOrder.OldestFirst,
+
+                                        AutoReplenishment =
+                                            true
+                                    });
+                    });
+
+                options.AddPolicy(
+                    StepUpRateLimitOptions.PolicyName,
+                    httpContext =>
+                    {
+                        var clientIp =
+                            httpContext.Connection
+                                .RemoteIpAddress?
+                                .ToString()
+                            ?? "unknown";
+
+                        return RateLimitPartition
+                            .GetFixedWindowLimiter(
+                                clientIp,
+                                _ =>
+                                    new FixedWindowRateLimiterOptions
+                                    {
+                                        PermitLimit =
+                                            stepUpRateLimitOptions.PermitLimit,
+
+                                        Window =
+                                            stepUpRateLimitOptions.Window,
+
+                                        QueueLimit =
+                                            stepUpRateLimitOptions.QueueLimit,
 
                                         QueueProcessingOrder =
                                             QueueProcessingOrder.OldestFirst,

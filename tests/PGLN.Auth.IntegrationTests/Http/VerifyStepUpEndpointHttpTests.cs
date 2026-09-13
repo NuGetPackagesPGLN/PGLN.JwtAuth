@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Contracts.Authentication;
+using PGLN.Auth.AspNetCore.RateLimiting;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 
 namespace PGLN.Auth.IntegrationTests.Http;
@@ -791,6 +792,103 @@ public sealed class VerifyStepUpEndpointHttpTests
             "TokenRefresh.RevokedToken",
             compromisedBody);
     }
+    [Fact]
+    public async Task VerifyStepUp_WhenRateLimitIsExceeded_ShouldReturnTooManyRequests()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync(
+                stepUpRateLimitOptions:
+                    new StepUpRateLimitOptions
+                    {
+                        PermitLimit = 1,
+                        Window =
+                            TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    });
+
+        const string email =
+            "rate-limit-user@example.com";
+
+        const string password =
+            "SecretPassword123!";
+
+        await SeedUserAsync(
+            application,
+            email,
+            password,
+            confirmed:
+                true);
+
+        using var client =
+            application.CreateClient();
+
+        var loginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    "rate-limit-device",
+                    "Rate Limit Test Device"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            loginResponse.StatusCode);
+
+        var login =
+            await loginResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            login);
+
+        Assert.Equal(
+            "StepUpRequired",
+            login.Status);
+
+        Assert.NotNull(
+            login.StepUpChallengeId);
+
+        var request =
+            new VerifyStepUpRequest(
+                login.StepUpChallengeId.Value,
+                "654321",
+                false);
+
+        var firstResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/verify-step-up",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            firstResponse.StatusCode);
+
+        var secondResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/verify-step-up",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.TooManyRequests,
+            secondResponse.StatusCode);
+
+        await using var scope =
+            application.Application.Services
+                .CreateAsyncScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AuthDbContext>();
+
+        var challenge =
+            await dbContext.StepUpChallenges
+                .SingleAsync();
+
+        Assert.Equal(
+            1,
+            challenge.FailedAttempts);
+    }
     private static async Task SeedUserAsync(
         HttpTestApplication application,
         string email,
@@ -834,10 +932,3 @@ public sealed class VerifyStepUpEndpointHttpTests
         await dbContext.SaveChangesAsync();
     }
 }
-
-
-
-
-
-
-

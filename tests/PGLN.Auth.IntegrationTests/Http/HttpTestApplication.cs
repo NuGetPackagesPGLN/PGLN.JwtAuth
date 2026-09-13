@@ -45,7 +45,8 @@ internal sealed class HttpTestApplication
 
     public static async Task<HttpTestApplication> CreateAsync(
         LoginRateLimitOptions? loginRateLimitOptions = null,
-        LoginEmailThrottleOptions? loginEmailThrottleOptions = null)
+        LoginEmailThrottleOptions? loginEmailThrottleOptions = null,
+        StepUpRateLimitOptions? stepUpRateLimitOptions = null)
     {
         var connection =
             new SqliteConnection(
@@ -73,7 +74,8 @@ internal sealed class HttpTestApplication
         builder.Services
             .AddPGLNAuthAspNetCore(
                 builder.Configuration,
-                loginRateLimitOptions);
+                loginRateLimitOptions,
+                stepUpRateLimitOptions);
 
         builder.Services
             .AddPGLNAuthEntityFrameworkCore(
@@ -162,12 +164,3 @@ internal sealed class HttpTestApplication
         await _connection.DisposeAsync();
     }
 }
-
-
-
-
-
-
-
-
-
