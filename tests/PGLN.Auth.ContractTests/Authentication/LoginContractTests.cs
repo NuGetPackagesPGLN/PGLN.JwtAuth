@@ -57,12 +57,14 @@ public sealed class LoginContractTests
     {
         var response =
             new LoginResponse(
+                "AuthenticationComplete",
                 Guid.NewGuid(),
                 "user@example.com",
                 "access-token",
                 DateTimeOffset.UtcNow.AddMinutes(15),
                 "refresh-token",
-                DateTimeOffset.UtcNow.AddDays(30));
+                DateTimeOffset.UtcNow.AddDays(30),
+                null);
 
         var json =
             JsonSerializer.Serialize(
@@ -74,6 +76,11 @@ public sealed class LoginContractTests
 
         var root =
             document.RootElement;
+
+        Assert.True(
+            root.TryGetProperty(
+                "Status",
+                out _));
 
         Assert.True(
             root.TryGetProperty(
@@ -105,6 +112,11 @@ public sealed class LoginContractTests
                 "RefreshTokenExpiresAtUtc",
                 out _));
 
+        Assert.True(
+            root.TryGetProperty(
+                "StepUpChallengeId",
+                out _));
+
         Assert.False(
             root.TryGetProperty(
                 "Password",
@@ -116,3 +128,4 @@ public sealed class LoginContractTests
                 out _));
     }
 }
+
