@@ -47,6 +47,7 @@ public static class DependencyInjection
         emailDeliveryOptions.Validate();
         refreshTokenOptions.Validate();
         accountLockoutOptions.Validate();
+        stepUpChallengeOptions.Validate();
 
         services.AddSingleton(
             passwordPolicy);
@@ -112,8 +113,3 @@ public static class DependencyInjection
         return services;
     }
 }
-
-
-
-
-

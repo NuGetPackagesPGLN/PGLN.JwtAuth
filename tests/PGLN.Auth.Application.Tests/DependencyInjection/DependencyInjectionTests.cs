@@ -5,6 +5,7 @@ using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
+using PGLN.Auth.Application.Configuration;
 using PGLN.Auth.Application.Features.Registration;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Domain.VerificationTokens;
@@ -176,6 +177,53 @@ public sealed class DependencyInjectionTests
                 handler.HandleAsync(command));
     }
 
+    [Fact]
+    public void AddPGLNAuthApplication_WithInvalidStepUpLifetime_ShouldThrow()
+    {
+        var services =
+            new ServiceCollection();
+
+        var stepUpOptions =
+            new StepUpChallengeOptions
+            {
+                Lifetime = TimeSpan.Zero
+            };
+
+        var exception =
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    services.AddPGLNAuthApplication(
+                        stepUpChallengeOptions:
+                            stepUpOptions));
+
+        Assert.Equal(
+            "Step-up challenge lifetime must be greater than zero.",
+            exception.Message);
+    }
+
+    [Fact]
+    public void AddPGLNAuthApplication_WithInvalidStepUpMaxFailedAttempts_ShouldThrow()
+    {
+        var services =
+            new ServiceCollection();
+
+        var stepUpOptions =
+            new StepUpChallengeOptions
+            {
+                MaxFailedAttempts = 0
+            };
+
+        var exception =
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    services.AddPGLNAuthApplication(
+                        stepUpChallengeOptions:
+                            stepUpOptions));
+
+        Assert.Equal(
+            "Step-up maximum failed attempts must be greater than zero.",
+            exception.Message);
+    }
     private static void AddRegistrationDependencies(
         IServiceCollection services)
     {
@@ -331,4 +379,3 @@ public sealed class DependencyInjectionTests
                 TimeSpan.Zero);
     }
 }
-
