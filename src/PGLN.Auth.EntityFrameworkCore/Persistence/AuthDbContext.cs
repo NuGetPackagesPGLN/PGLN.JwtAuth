@@ -7,6 +7,7 @@ using PGLN.Auth.Domain.Sessions;
 using PGLN.Auth.Domain.StepUpChallenges;
 using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Users;
+using PGLN.Auth.Domain.ExternalLogins;
 using PGLN.Auth.Domain.VerificationTokens;
 using PGLN.Auth.EntityFrameworkCore.Outbox;
 
@@ -42,6 +43,9 @@ public sealed class AuthDbContext
     public DbSet<TrustedDevice> TrustedDevices =>
         Set<TrustedDevice>();
 
+    public DbSet<ExternalLogin> ExternalLogins =>
+        Set<ExternalLogin>();
+
     public DbSet<StepUpChallenge> StepUpChallenges =>
         Set<StepUpChallenge>();
 
@@ -61,6 +65,8 @@ public sealed class AuthDbContext
             typeof(AuthDbContext).Assembly);
     }
 }
+
+
 
 
 

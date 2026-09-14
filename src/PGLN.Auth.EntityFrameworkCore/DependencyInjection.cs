@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Persistence;
+using PGLN.Auth.Domain.ExternalLogins;
 using PGLN.Auth.EntityFrameworkCore.Outbox;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 using PGLN.Auth.EntityFrameworkCore.Persistence.Repositories;
@@ -61,6 +62,10 @@ public static class DependencyInjection
             TrustedDeviceRepository>();
 
         services.AddScoped<
+            IExternalLoginRepository,
+            ExternalLoginRepository>();
+
+        services.AddScoped<
             IStepUpChallengeRepository,
             StepUpChallengeRepository>();
 
@@ -90,6 +95,9 @@ public static class DependencyInjection
         return services;
     }
 }
+
+
+
 
 
 

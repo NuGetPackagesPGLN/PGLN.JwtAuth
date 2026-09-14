@@ -112,9 +112,10 @@ public sealed class ChangePasswordCommandHandler
         }
 
         var currentPasswordIsValid =
+            user.HasPassword &&
             _passwordHasher.Verify(
                 command.CurrentPassword,
-                user.PasswordHash);
+                user.PasswordHash!);
 
         if (!currentPasswordIsValid)
         {
@@ -171,3 +172,4 @@ public sealed class ChangePasswordCommandHandler
         return Result.Success();
     }
 }
+

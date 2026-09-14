@@ -50,8 +50,10 @@ public sealed class UserConfiguration
 
         builder
             .Property(user => user.PasswordHash)
-            .HasMaxLength(1024)
-            .IsRequired();
+            .HasMaxLength(1024);
+
+        builder.Ignore(
+            user => user.HasPassword);
 
         builder
             .Property(user => user.EmailConfirmed)
@@ -78,4 +80,5 @@ public sealed class UserConfiguration
             user => user.DomainEvents);
     }
 }
+
 

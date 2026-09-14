@@ -6,9 +6,12 @@ using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Configuration;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
+using PGLN.Auth.Application.Abstractions.ExternalAuthentication;
 using PGLN.Auth.Application.Abstractions.Security;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Infrastructure.Authentication;
+using PGLN.Auth.Infrastructure.Authentication.External;
+using PGLN.Auth.Infrastructure.Authentication.External.Google;
 using PGLN.Auth.Infrastructure.Email;
 using PGLN.Auth.Infrastructure.Events;
 using PGLN.Auth.Infrastructure.Passwords;
@@ -112,9 +115,67 @@ public static class DependencyInjection
             IEmailTemplateRenderer,
             DefaultEmailTemplateRenderer>();
 
+
+        var googleOptions =
+            configuration
+                .GetSection(
+                    GoogleExternalAuthenticationOptions.SectionName)
+                .Get<GoogleExternalAuthenticationOptions>();
+
+        if (googleOptions is not null &&
+            !string.IsNullOrWhiteSpace(
+                googleOptions.ClientId) &&
+            !string.IsNullOrWhiteSpace(
+                googleOptions.ClientSecret))
+        {
+            googleOptions.Validate();
+
+            services.AddSingleton(
+                googleOptions);
+
+            services.AddHttpClient<
+                GoogleExternalIdentityProvider>();
+
+            services.AddTransient<
+                IExternalIdentityProvider>(
+                serviceProvider =>
+                    serviceProvider.GetRequiredService<
+                        GoogleExternalIdentityProvider>());
+
+            services.AddSingleton<
+                GoogleAuthorizationUrlBuilder>();
+
+            services.AddSingleton<
+                IExternalAuthorizationUrlBuilder>(
+                serviceProvider =>
+                    serviceProvider.GetRequiredService<
+                        GoogleAuthorizationUrlBuilder>());
+        }
+
+        services.AddSingleton<
+            IExternalAuthenticationStateProtector,
+            ExternalAuthenticationStateProtector>();
+
+        services.AddSingleton<
+            IPkceGenerator,
+            PkceGenerator>();
+
+        services.AddSingleton<
+            IExternalAuthorizationUrlBuilderResolver,
+            ExternalAuthorizationUrlBuilderResolver>();
+
+        services.AddSingleton<
+            IExternalIdentityProviderResolver,
+            ExternalIdentityProviderResolver>();
         return services;
     }
 }
+
+
+
+
+
+
 
 
 

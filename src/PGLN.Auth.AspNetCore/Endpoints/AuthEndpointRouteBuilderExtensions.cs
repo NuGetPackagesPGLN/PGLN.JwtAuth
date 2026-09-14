@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.AspNetCore.Endpoints.Authentication;
 using PGLN.Auth.AspNetCore.Endpoints.ChangeEmail;
 using PGLN.Auth.AspNetCore.Endpoints.EmailConfirmation;
+using PGLN.Auth.AspNetCore.Endpoints.ExternalAuthentication;
 using PGLN.Auth.AspNetCore.Endpoints.Registration;
 using PGLN.Auth.AspNetCore.Endpoints.Sessions;
 using PGLN.Auth.AspNetCore.Endpoints.TrustedDevices;
@@ -64,9 +65,14 @@ public static class AuthEndpointRouteBuilderExtensions
 
         group.MapRevokeTrustedDeviceEndpoint();
 
+        group.MapStartGoogleExternalLoginEndpoint();
+
+        group.MapCompleteGoogleExternalLoginEndpoint();
+
         return group;
     }
 }
+
 
 
 

@@ -210,12 +210,12 @@ public sealed class ChangePasswordEndpointHttpTests
         Assert.True(
             passwordHasher.Verify(
                 NewPassword,
-                storedUser.PasswordHash));
+                storedUser.PasswordHash!));
 
         Assert.False(
             passwordHasher.Verify(
                 CurrentPassword,
-                storedUser.PasswordHash));
+                storedUser.PasswordHash!));
     }
 
     [Fact]
@@ -286,5 +286,6 @@ public sealed class ChangePasswordEndpointHttpTests
     }
 
 }
+
 
 

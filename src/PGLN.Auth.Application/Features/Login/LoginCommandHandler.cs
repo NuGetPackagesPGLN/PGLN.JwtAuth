@@ -171,9 +171,10 @@ public sealed class LoginCommandHandler
         }
 
         var passwordIsValid =
+            user.HasPassword &&
             _passwordHasher.Verify(
                 command.Password,
-                user.PasswordHash);
+                user.PasswordHash!);
 
         if (!passwordIsValid)
         {
@@ -456,6 +457,7 @@ public sealed class LoginCommandHandler
             cancellationToken);
     }
 }
+
 
 
 

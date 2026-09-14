@@ -6,8 +6,10 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using PGLN.Auth.Application;
 using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.ExternalAuthentication;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Features.Login;
@@ -70,6 +72,18 @@ internal sealed class HttpTestApplication
         builder.Services
             .AddPGLNAuthInfrastructure(
                 builder.Configuration);
+
+        builder.Services.RemoveAll<
+            IExternalIdentityProvider>();
+
+        builder.Services.AddSingleton<
+            HttpTestGoogleExternalIdentityProvider>();
+
+        builder.Services.AddSingleton<
+            IExternalIdentityProvider>(
+                serviceProvider =>
+                    serviceProvider.GetRequiredService<
+                        HttpTestGoogleExternalIdentityProvider>());
 
         builder.Services
             .AddPGLNAuthAspNetCore(
@@ -151,7 +165,16 @@ internal sealed class HttpTestApplication
                     "00:15:00",
 
                 ["PGLNAuth:StepUpSecurity:HmacSecret"] =
-                    "integration-test-step-up-hmac-secret-32-characters-minimum"
+                    "integration-test-step-up-hmac-secret-32-characters-minimum",
+
+                ["PGLNAuth:ExternalAuthentication:Google:ClientId"] =
+                    "integration-test-google-client-id",
+
+                ["PGLNAuth:ExternalAuthentication:Google:ClientSecret"] =
+                    "integration-test-google-client-secret",
+
+                ["PGLNAuth:ExternalAuthentication:Google:AllowedRedirectUris:0"] =
+                    "https://app.example.test/signin-google"
             });
     }
 
@@ -164,3 +187,5 @@ internal sealed class HttpTestApplication
         await _connection.DisposeAsync();
     }
 }
+
+

@@ -11,20 +11,26 @@ public sealed class User : AggregateRoot<UserId>
         : base(default)
     {
         Email = null!;
-        PasswordHash = string.Empty;
     }
 
     private User(
         UserId id,
         Email email,
-        string passwordHash,
-        DateTimeOffset createdAtUtc)
+        string? passwordHash,
+        DateTimeOffset createdAtUtc,
+        bool emailConfirmed)
         : base(id)
     {
         Email = email;
         _normalizedEmail = email.NormalizedValue;
         PasswordHash = passwordHash;
         CreatedAtUtc = createdAtUtc;
+        EmailConfirmed = emailConfirmed;
+
+        if (emailConfirmed)
+        {
+            EmailConfirmedAtUtc = createdAtUtc;
+        }
     }
 
     public Email Email { get; private set; }
@@ -32,7 +38,10 @@ public sealed class User : AggregateRoot<UserId>
     public string NormalizedEmail =>
         _normalizedEmail;
 
-    public string PasswordHash { get; private set; }
+    public string? PasswordHash { get; private set; }
+
+    public bool HasPassword =>
+        !string.IsNullOrWhiteSpace(PasswordHash);
 
     public bool EmailConfirmed { get; private set; }
 
@@ -67,7 +76,8 @@ public sealed class User : AggregateRoot<UserId>
                 id,
                 email,
                 passwordHash,
-                createdAtUtc);
+                createdAtUtc,
+                emailConfirmed: false);
 
         user.RaiseDomainEvent(
             new UserRegistered(
@@ -76,6 +86,21 @@ public sealed class User : AggregateRoot<UserId>
                 createdAtUtc));
 
         return user;
+    }
+
+    public static User RegisterExternal(
+        UserId id,
+        Email email,
+        DateTimeOffset createdAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+
+        return new User(
+            id,
+            email,
+            passwordHash: null,
+            createdAtUtc,
+            emailConfirmed: true);
     }
 
     public void ConfirmEmail(
@@ -110,6 +135,7 @@ public sealed class User : AggregateRoot<UserId>
         EmailConfirmedAtUtc =
             confirmedAtUtc;
     }
+
     public void RecordFailedLoginAttempt(
         DateTimeOffset attemptedAtUtc)
     {
@@ -152,5 +178,3 @@ public sealed class User : AggregateRoot<UserId>
                 changedAtUtc));
     }
 }
-
-

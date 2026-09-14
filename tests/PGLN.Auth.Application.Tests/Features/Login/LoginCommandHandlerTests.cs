@@ -1811,6 +1811,89 @@ public sealed class LoginCommandHandlerTests
             1,
             refreshTokenGenerator.GenerateCallCount);
     }
+    [Fact]
+    public async Task HandleAsync_WhenUserHasNoPassword_ShouldReturnInvalidCredentials()
+    {
+        var user =
+            User.RegisterExternal(
+                UserId.New(),
+                Email.Create(
+                    "external@example.com"),
+                Now.AddDays(-10));
+
+        user.ClearDomainEvents();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var loginAttempts =
+            new FakeLoginAttemptRepository();
+
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    loginAttempts,
+                    refreshTokens,
+                    accessTokenGenerator,
+                    refreshTokenGenerator,
+                    authSessionRepository:
+                        sessions)
+                .HandleAsync(
+                    new LoginCommand(
+                        user.Email.Value,
+                        "some-password",
+                        "external-device",
+                        "Chrome on Windows",
+                        "127.0.0.1",
+                        "TestAgent/1.0"));
+
+        Assert.True(
+            result.IsFailure);
+
+        Assert.Equal(
+            LoginErrors.InvalidCredentials,
+            result.Error);
+
+        Assert.Empty(
+            sessions.Sessions);
+
+        Assert.Empty(
+            refreshTokens.Tokens);
+
+        Assert.Equal(
+            0,
+            accessTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            0,
+            refreshTokenGenerator.GenerateCallCount);
+
+        var attempt =
+            Assert.Single(
+                loginAttempts.Attempts);
+
+        Assert.False(
+            attempt.Succeeded);
+
+        Assert.Equal(
+            LoginFailureReason.InvalidCredentials,
+            attempt.FailureReason);
+    }
     private static LoginCommandHandler CreateHandler(
         FakeUserRepository userRepository,
         FakeLoginAttemptRepository loginAttemptRepository,
@@ -2260,6 +2343,7 @@ public sealed class LoginCommandHandlerTests
             refreshToken.SessionId,
             accessTokenGenerator.LastSessionId);
     }}
+
 
 
 

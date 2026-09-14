@@ -140,12 +140,12 @@ public sealed class ResetPasswordEndpointHttpTests
             Assert.True(
                 passwordHasher.Verify(
                     newPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     oldPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.True(
                 persistedResetToken.IsUsed);
@@ -368,12 +368,12 @@ public sealed class ResetPasswordEndpointHttpTests
             Assert.True(
                 passwordHasher.Verify(
                     oldPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     newPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 persistedResetToken.IsUsed);
@@ -547,17 +547,17 @@ public sealed class ResetPasswordEndpointHttpTests
             Assert.True(
                 passwordHasher.Verify(
                     firstNewPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     replayPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     oldPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.True(
                 persistedResetToken.IsUsed);
@@ -767,24 +767,24 @@ public sealed class ResetPasswordEndpointHttpTests
             Assert.True(
                 passwordHasher.Verify(
                     ownerPassword,
-                    persistedTokenOwner.PasswordHash));
+                    persistedTokenOwner.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     attemptedNewPassword,
-                    persistedTokenOwner.PasswordHash));
+                    persistedTokenOwner.PasswordHash!));
 
 
             // User B's password must also remain unchanged.
             Assert.True(
                 passwordHasher.Verify(
                     otherUserPassword,
-                    persistedRequestUser.PasswordHash));
+                    persistedRequestUser.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     attemptedNewPassword,
-                    persistedRequestUser.PasswordHash));
+                    persistedRequestUser.PasswordHash!));
 
 
             // The mismatched request must not consume the token.
@@ -950,12 +950,12 @@ public sealed class ResetPasswordEndpointHttpTests
             Assert.True(
                 passwordHasher.Verify(
                     oldPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 passwordHasher.Verify(
                     attemptedNewPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.False(
                 persistedResetToken.IsUsed);
@@ -1217,12 +1217,12 @@ public sealed class ResetPasswordEndpointHttpTests
             Assert.False(
                 passwordHasher.Verify(
                     oldPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
             Assert.True(
                 passwordHasher.Verify(
                     newPassword,
-                    persistedUser.PasswordHash));
+                    persistedUser.PasswordHash!));
 
 
             // ------------------------------------------------
@@ -1282,5 +1282,6 @@ public sealed class ResetPasswordEndpointHttpTests
         }
     }
 }
+
 
 
