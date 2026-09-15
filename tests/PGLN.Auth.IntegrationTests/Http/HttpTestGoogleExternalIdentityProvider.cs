@@ -17,6 +17,8 @@ internal sealed class HttpTestGoogleExternalIdentityProvider
             true,
             "Google Integration User");
 
+    public ExternalIdentityProviderException? ExceptionToThrow { get; set; }
+
     public int GetIdentityCallCount { get; private set; }
 
     public string? LastAuthorizationCode { get; private set; }
@@ -43,6 +45,11 @@ internal sealed class HttpTestGoogleExternalIdentityProvider
 
         LastCodeVerifier =
             codeVerifier;
+
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
 
         return Task.FromResult(
             Identity);

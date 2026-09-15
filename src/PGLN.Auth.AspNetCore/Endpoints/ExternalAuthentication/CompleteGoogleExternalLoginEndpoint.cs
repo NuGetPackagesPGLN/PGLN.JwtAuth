@@ -19,7 +19,8 @@ public static class CompleteGoogleExternalLoginEndpoint
     }
 
     private static async Task<IResult> HandleAsync(
-        string code,
+        string? code,
+        string? error,
         string state,
         string redirectUri,
         string deviceIdHash,
@@ -38,7 +39,8 @@ public static class CompleteGoogleExternalLoginEndpoint
                     deviceIdHash,
                     deviceName,
                     httpContext.Connection.RemoteIpAddress?.ToString(),
-                    httpContext.Request.Headers.UserAgent.ToString()),
+                    httpContext.Request.Headers.UserAgent.ToString(),
+                    error),
                 cancellationToken);
 
         if (result.IsSuccess)
@@ -75,7 +77,9 @@ public static class CompleteGoogleExternalLoginEndpoint
         if (result.Error ==
             ExternalAuthenticationErrors.InvalidState ||
             result.Error ==
-            ExternalAuthenticationErrors.IdentityInvalid)
+            ExternalAuthenticationErrors.IdentityInvalid ||
+            result.Error ==
+            ExternalAuthenticationErrors.AuthorizationDenied)
         {
             return Results.Json(
                 new
@@ -104,6 +108,22 @@ public static class CompleteGoogleExternalLoginEndpoint
                 },
                 statusCode:
                     StatusCodes.Status409Conflict);
+        }
+
+        if (result.Error ==
+            ExternalAuthenticationErrors.ProviderFailure)
+        {
+            return Results.Json(
+                new
+                {
+                    code =
+                        result.Error.Code,
+
+                    description =
+                        result.Error.Description
+                },
+                statusCode:
+                    StatusCodes.Status502BadGateway);
         }
 
         return Results.Json(

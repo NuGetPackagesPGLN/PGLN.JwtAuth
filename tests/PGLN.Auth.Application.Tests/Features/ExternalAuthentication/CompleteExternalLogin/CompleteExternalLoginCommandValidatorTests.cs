@@ -23,7 +23,7 @@ public sealed class CompleteExternalLoginCommandValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenAuthorizationCodeIsEmpty_ShouldHaveError()
+    public async Task Validate_WhenAuthorizationCodeIsEmpty_ShouldBeValid()
     {
         var command =
             CreateValidCommand() with
@@ -35,7 +35,7 @@ public sealed class CompleteExternalLoginCommandValidatorTests
             await _validator.TestValidateAsync(
                 command);
 
-        result.ShouldHaveValidationErrorFor(
+        result.ShouldNotHaveValidationErrorFor(
             value => value.AuthorizationCode);
     }
 
@@ -173,7 +173,8 @@ public sealed class CompleteExternalLoginCommandValidatorTests
             "device-hash",
             "Chrome on Windows",
             "127.0.0.1",
-            "test-user-agent");
+            "test-user-agent",
+            null);
     }
 
     [Fact]
@@ -191,7 +192,8 @@ public sealed class CompleteExternalLoginCommandValidatorTests
                 string.Empty,
                 "Chrome on Windows",
                 "127.0.0.1",
-                "Chrome/1.0");
+                "Chrome/1.0",
+                null);
 
         var result =
             validator.Validate(command);
@@ -204,7 +206,82 @@ public sealed class CompleteExternalLoginCommandValidatorTests
                 error.PropertyName ==
                 nameof(CompleteExternalLoginCommand.DeviceIdHash));
     }
-}
+
+    [Fact]
+    public async Task Validate_WhenAuthorizationCodeIsPresentAndProviderErrorIsNull_ShouldBeValid()
+    {
+        var command =
+            CreateValidCommand();
+
+        var result =
+            await _validator.TestValidateAsync(
+                command);
+
+        result.ShouldNotHaveValidationErrorFor(
+            value => value.AuthorizationCode);
+    }
+
+    [Fact]
+    public async Task Validate_WhenProviderErrorIsPresentAndAuthorizationCodeIsNull_ShouldBeValid()
+    {
+        var command =
+            CreateValidCommand() with
+            {
+                AuthorizationCode = null,
+                ProviderError = "access_denied"
+            };
+
+        var result =
+            await _validator.TestValidateAsync(
+                command);
+
+        result.ShouldNotHaveValidationErrorFor(
+            value => value.AuthorizationCode);
+
+        result.ShouldNotHaveValidationErrorFor(
+            value => value.ProviderError);
+    }
+
+    [Fact]
+    public async Task Validate_WhenAuthorizationCodeAndProviderErrorAreMissing_ShouldBeValid()
+    {
+        var command =
+            CreateValidCommand() with
+            {
+                AuthorizationCode = null,
+                ProviderError = null
+            };
+
+        var result =
+            await _validator.TestValidateAsync(
+                command);
+
+        result.ShouldNotHaveValidationErrorFor(
+            value => value.AuthorizationCode);
+    }
+
+    [Fact]
+    public async Task Validate_WhenProviderErrorIsTooLong_ShouldHaveError()
+    {
+        var command =
+            CreateValidCommand() with
+            {
+                AuthorizationCode = null,
+                ProviderError =
+                    new string('a', 257)
+            };
+
+        var result =
+            await _validator.TestValidateAsync(
+                command);
+
+        result.ShouldHaveValidationErrorFor(
+            value => value.ProviderError);
+    }}
+
+
+
+
 
 
 

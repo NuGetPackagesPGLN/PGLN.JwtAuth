@@ -64,7 +64,7 @@ public sealed class GoogleExternalIdentityProvider
         if (string.IsNullOrWhiteSpace(
                 userInfo.Subject))
         {
-            throw new InvalidOperationException(
+            throw new ExternalIdentityProviderException(
                 "Google did not return a valid subject identifier.");
         }
 
@@ -118,7 +118,7 @@ public sealed class GoogleExternalIdentityProvider
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(
+            throw new ExternalIdentityProviderException(
                 "Google authorization-code exchange failed.");
         }
 
@@ -130,7 +130,7 @@ public sealed class GoogleExternalIdentityProvider
             string.IsNullOrWhiteSpace(
                 tokenResponse.AccessToken))
         {
-            throw new InvalidOperationException(
+            throw new ExternalIdentityProviderException(
                 "Google did not return a valid access token.");
         }
 
@@ -159,7 +159,7 @@ public sealed class GoogleExternalIdentityProvider
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(
+            throw new ExternalIdentityProviderException(
                 "Google user-info request failed.");
         }
 
@@ -169,10 +169,12 @@ public sealed class GoogleExternalIdentityProvider
 
         if (userInfo is null)
         {
-            throw new InvalidOperationException(
+            throw new ExternalIdentityProviderException(
                 "Google returned an invalid user-info response.");
         }
 
         return userInfo;
     }
 }
+
+

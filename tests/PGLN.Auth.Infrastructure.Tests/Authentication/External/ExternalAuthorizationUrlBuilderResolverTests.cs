@@ -17,7 +17,13 @@ public sealed class ExternalAuthorizationUrlBuilderResolverTests
                     "google-client-id",
 
                 ClientSecret =
-                    "google-client-secret"
+                    "google-client-secret",
+
+                AllowedRedirectUris =
+                    new[]
+                    {
+                        "https://app.example.test/signin-google"
+                    }
             };
 
         IExternalAuthorizationUrlBuilder googleBuilder =

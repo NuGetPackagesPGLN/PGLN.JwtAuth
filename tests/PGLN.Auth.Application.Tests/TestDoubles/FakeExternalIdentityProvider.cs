@@ -24,6 +24,8 @@ public sealed class FakeExternalIdentityProvider
 
     public ExternalIdentity Identity { get; set; }
 
+    public ExternalIdentityProviderException? ExceptionToThrow { get; set; }
+
     public int GetIdentityCallCount { get; private set; }
 
     public string? LastAuthorizationCode { get; private set; }
@@ -49,7 +51,13 @@ public sealed class FakeExternalIdentityProvider
         LastCodeVerifier =
             codeVerifier;
 
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+
         return Task.FromResult(
             Identity);
     }
 }
+

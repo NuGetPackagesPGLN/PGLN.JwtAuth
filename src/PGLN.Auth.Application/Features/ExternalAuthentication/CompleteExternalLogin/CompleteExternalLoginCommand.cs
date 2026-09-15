@@ -6,11 +6,12 @@ namespace PGLN.Auth.Application.Features.ExternalAuthentication.CompleteExternal
 
 public sealed record CompleteExternalLoginCommand(
     ExternalLoginProvider Provider,
-    string AuthorizationCode,
+    string? AuthorizationCode,
     string State,
     string RedirectUri,
     string DeviceIdHash,
     string? DeviceName,
     string? IpAddress,
-    string? UserAgent)
+    string? UserAgent,
+    string? ProviderError)
     : ICommand<Result<CompleteExternalLoginResult>>;

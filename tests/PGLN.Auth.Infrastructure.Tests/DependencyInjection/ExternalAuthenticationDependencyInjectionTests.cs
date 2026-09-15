@@ -25,7 +25,10 @@ public sealed class ExternalAuthenticationDependencyInjectionTests
                     "google-client-id",
 
                 ["PGLNAuth:ExternalAuthentication:Google:ClientSecret"] =
-                    "google-client-secret"
+                    "google-client-secret",
+
+                ["PGLNAuth:ExternalAuthentication:Google:AllowedRedirectUris:0"] =
+                    "https://app.example.test/signin-google"
             };
 
         var configuration =

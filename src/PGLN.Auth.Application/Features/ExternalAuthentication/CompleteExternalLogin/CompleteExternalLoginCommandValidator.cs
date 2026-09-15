@@ -10,9 +10,12 @@ public sealed class CompleteExternalLoginCommandValidator
         RuleFor(command => command.Provider)
             .IsInEnum();
 
+
         RuleFor(command => command.AuthorizationCode)
-            .NotEmpty()
             .MaximumLength(4096);
+
+        RuleFor(command => command.ProviderError)
+            .MaximumLength(256);
 
         RuleFor(command => command.State)
             .NotEmpty()
@@ -36,5 +39,4 @@ public sealed class CompleteExternalLoginCommandValidator
             .MaximumLength(1024);
     }
 }
-
 

@@ -175,6 +175,29 @@ public sealed class CompleteExternalLoginCommandHandler
                 ExternalAuthenticationErrors.InvalidState);
         }
 
+        if (!string.IsNullOrWhiteSpace(
+                command.ProviderError))
+        {
+            if (string.Equals(
+                    command.ProviderError,
+                    "access_denied",
+                    StringComparison.Ordinal))
+            {
+                return Result<CompleteExternalLoginResult>.Failure(
+                    ExternalAuthenticationErrors.AuthorizationDenied);
+            }
+
+            return Result<CompleteExternalLoginResult>.Failure(
+                ExternalAuthenticationErrors.ProviderRejected);
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                command.AuthorizationCode))
+        {
+            return Result<CompleteExternalLoginResult>.Failure(
+                ExternalAuthenticationErrors.AuthorizationCodeMissing);
+        }
+
         IExternalIdentityProvider provider;
 
         try
@@ -190,12 +213,22 @@ public sealed class CompleteExternalLoginCommandHandler
                 ExternalAuthenticationErrors.ProviderNotSupported);
         }
 
-        var identity =
-            await provider.GetIdentityAsync(
-                command.AuthorizationCode,
-                command.RedirectUri,
-                authenticationState.CodeVerifier,
-                cancellationToken);
+        ExternalIdentity identity;
+
+        try
+        {
+            identity =
+                await provider.GetIdentityAsync(
+                    command.AuthorizationCode,
+                    command.RedirectUri,
+                    authenticationState.CodeVerifier,
+                    cancellationToken);
+        }
+        catch (ExternalIdentityProviderException)
+        {
+            return Result<CompleteExternalLoginResult>.Failure(
+                ExternalAuthenticationErrors.ProviderFailure);
+        }
 
         if (identity.Provider != command.Provider ||
             string.IsNullOrWhiteSpace(
@@ -383,6 +416,10 @@ public sealed class CompleteExternalLoginCommandHandler
                 isNewUser));
     }
 }
+
+
+
+
 
 
 

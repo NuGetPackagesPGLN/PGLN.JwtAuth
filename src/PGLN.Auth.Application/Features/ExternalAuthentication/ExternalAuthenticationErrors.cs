@@ -14,14 +14,35 @@ public static class ExternalAuthenticationErrors
             "ExternalAuthentication.IdentityInvalid",
             "The external identity could not be validated.");
 
+    public static readonly Error ProviderFailure =
+        new(
+            "ExternalAuthentication.ProviderFailure",
+            "The external authentication provider could not complete the authentication request.");
+
+    public static readonly Error ProviderRejected =
+        new(
+            "ExternalAuthentication.ProviderRejected",
+            "The external authentication provider rejected the request.");
+
     public static readonly Error RedirectUriNotAllowed =
         new(
             "ExternalAuthentication.RedirectUriNotAllowed",
             "The external authentication redirect URI is not allowed.");
+
     public static readonly Error InvalidState =
         new(
             "ExternalAuthentication.InvalidState",
             "The external authentication state is invalid or has been tampered with.");
+
+    public static readonly Error AuthorizationDenied =
+        new(
+            "ExternalAuthentication.AuthorizationDenied",
+            "The external authentication request was denied.");
+
+    public static readonly Error AuthorizationCodeMissing =
+        new(
+            "ExternalAuthentication.AuthorizationCodeMissing",
+            "The external authentication authorization code is required.");
 
     public static readonly Error EmailRequired =
         new(

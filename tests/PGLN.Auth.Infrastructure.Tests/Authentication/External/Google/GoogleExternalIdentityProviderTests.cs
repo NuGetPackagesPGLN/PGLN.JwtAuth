@@ -1,3 +1,4 @@
+using PGLN.Auth.Application.Abstractions.ExternalAuthentication;
 using System.Net;
 using System.Text;
 using PGLN.Auth.Domain.ExternalLogins;
@@ -70,7 +71,12 @@ public sealed class GoogleExternalIdentityProviderTests
                     "https://accounts.example.test/token",
 
                 UserInfoEndpoint =
-                    "https://accounts.example.test/userinfo"
+                    "https://accounts.example.test/userinfo",
+
+                AllowedRedirectUris =
+                [
+                    "https://app.example.test/signin-google"
+                ]
             };
 
         var provider =
@@ -162,7 +168,12 @@ public sealed class GoogleExternalIdentityProviderTests
                     "https://accounts.example.test/token",
 
                 UserInfoEndpoint =
-                    "https://accounts.example.test/userinfo"
+                    "https://accounts.example.test/userinfo",
+
+                AllowedRedirectUris =
+                [
+                    "https://app.example.test/signin-google"
+                ]
             };
 
         var provider =
@@ -171,7 +182,7 @@ public sealed class GoogleExternalIdentityProviderTests
                 options);
 
         var exception =
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<ExternalIdentityProviderException>(
                 () =>
                     provider.GetIdentityAsync(
                         "invalid-authorization-code",
@@ -234,7 +245,12 @@ public sealed class GoogleExternalIdentityProviderTests
                     "https://accounts.example.test/token",
 
                 UserInfoEndpoint =
-                    "https://accounts.example.test/userinfo"
+                    "https://accounts.example.test/userinfo",
+
+                AllowedRedirectUris =
+                [
+                    "https://app.example.test/signin-google"
+                ]
             };
 
         var provider =
@@ -243,7 +259,7 @@ public sealed class GoogleExternalIdentityProviderTests
                 options);
 
         var exception =
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<ExternalIdentityProviderException>(
                 () =>
                     provider.GetIdentityAsync(
                         "authorization-code",
@@ -324,7 +340,12 @@ public sealed class GoogleExternalIdentityProviderTests
                     "https://accounts.example.test/token",
 
                 UserInfoEndpoint =
-                    "https://accounts.example.test/userinfo"
+                    "https://accounts.example.test/userinfo",
+
+                AllowedRedirectUris =
+                [
+                    "https://app.example.test/signin-google"
+                ]
             };
 
         var provider =
@@ -333,7 +354,7 @@ public sealed class GoogleExternalIdentityProviderTests
                 options);
 
         var exception =
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<ExternalIdentityProviderException>(
                 () =>
                     provider.GetIdentityAsync(
                         "authorization-code",
@@ -407,7 +428,12 @@ public sealed class GoogleExternalIdentityProviderTests
                     "https://accounts.example.test/token",
 
                 UserInfoEndpoint =
-                    "https://accounts.example.test/userinfo"
+                    "https://accounts.example.test/userinfo",
+
+                AllowedRedirectUris =
+                [
+                    "https://app.example.test/signin-google"
+                ]
             };
 
         var provider =
@@ -462,6 +488,9 @@ public sealed class GoogleExternalIdentityProviderTests
             body);
     }
 }
+
+
+
 
 
 
