@@ -29,38 +29,19 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var loginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    "user@example.com",
-                    password,
-                    "integration-test-device",
-                    "Integration Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            loginResponse.StatusCode);
-
         var loginBody =
-            await loginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            loginBody);
-
-        Assert.Equal(
-            "StepUpRequired",
-            loginBody.Status);
-
-        Assert.NotNull(
-            loginBody.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                "user@example.com",
+                password,
+                "integration-test-device",
+                "Integration Test Device");
 
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
                 new VerifyStepUpRequest(
-                    loginBody.StepUpChallengeId.Value,
+                    loginBody.StepUpChallengeId!.Value,
                     "123456",
                     false));
 
@@ -98,24 +79,51 @@ public sealed class VerifyStepUpEndpointHttpTests
         Assert.NotNull(
             challenge.VerifiedAtUtc);
 
-        var session =
+        var sessions =
             await dbContext.AuthSessions
-                .SingleAsync();
+                .ToListAsync();
 
         Assert.Equal(
-            "integration-test-device",
-            session.DeviceIdHash);
+            2,
+            sessions.Count);
+
+        var initialSession =
+            sessions.Single(
+                session =>
+                    session.DeviceIdHash ==
+                    "initial-established-device");
 
         Assert.False(
-            session.IsRevoked);
+            initialSession.IsRevoked);
 
-        var refreshToken =
+        var stepUpSession =
+            sessions.Single(
+                session =>
+                    session.DeviceIdHash ==
+                    "integration-test-device");
+
+        Assert.False(
+            stepUpSession.IsRevoked);
+
+        var refreshTokens =
             await dbContext.RefreshTokens
-                .SingleAsync();
+                .ToListAsync();
 
         Assert.Equal(
-            session.Id,
-            refreshToken.SessionId);
+            2,
+            refreshTokens.Count);
+
+        Assert.Contains(
+            refreshTokens,
+            refreshToken =>
+                refreshToken.SessionId ==
+                initialSession.Id);
+
+        Assert.Contains(
+            refreshTokens,
+            refreshToken =>
+                refreshToken.SessionId ==
+                stepUpSession.Id);
     }
 
 
@@ -138,30 +146,19 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var loginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    "user@example.com",
-                    password,
-                    "integration-test-device",
-                    "Integration Test Device"));
-
         var loginBody =
-            await loginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            loginBody);
-
-        Assert.NotNull(
-            loginBody.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                "user@example.com",
+                password,
+                "integration-test-device",
+                "Integration Test Device");
 
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
                 new VerifyStepUpRequest(
-                    loginBody.StepUpChallengeId.Value,
+                    loginBody.StepUpChallengeId!.Value,
                     "654321",
                     false));
 
@@ -188,13 +185,27 @@ public sealed class VerifyStepUpEndpointHttpTests
             1,
             challenge.FailedAttempts);
 
-        Assert.Empty(
+        var sessions =
             await dbContext.AuthSessions
-                .ToListAsync());
+                .ToListAsync();
 
-        Assert.Empty(
+        Assert.Single(
+            sessions);
+
+        Assert.Equal(
+            "initial-established-device",
+            sessions.Single().DeviceIdHash);
+
+        var refreshTokens =
             await dbContext.RefreshTokens
-                .ToListAsync());
+                .ToListAsync();
+
+        Assert.Single(
+            refreshTokens);
+
+        Assert.Equal(
+            sessions.Single().Id,
+            refreshTokens.Single().SessionId);
     }
 
     [Fact]
@@ -225,38 +236,19 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var firstLoginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    deviceIdHash,
-                    deviceName));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            firstLoginResponse.StatusCode);
-
         var firstLogin =
-            await firstLoginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            firstLogin);
-
-        Assert.Equal(
-            "StepUpRequired",
-            firstLogin.Status);
-
-        Assert.NotNull(
-            firstLogin.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                email,
+                password,
+                deviceIdHash,
+                deviceName);
 
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
                 new VerifyStepUpRequest(
-                    firstLogin.StepUpChallengeId.Value,
+                    firstLogin.StepUpChallengeId!.Value,
                     "123456",
                     false));
 
@@ -279,16 +271,54 @@ public sealed class VerifyStepUpEndpointHttpTests
                 scope.ServiceProvider
                     .GetRequiredService<AuthDbContext>();
 
-            var session =
+            var sessions =
                 await dbContext.AuthSessions
-                    .SingleAsync();
+                    .ToListAsync();
+
+            Assert.Equal(
+                2,
+                sessions.Count);
+
+            var initialSession =
+                sessions.Single(
+                    session =>
+                        session.DeviceIdHash ==
+                        "initial-established-device");
+
+            Assert.True(
+                initialSession.IsTrustedDevice);
+
+            var untrustedSession =
+                sessions.Single(
+                    session =>
+                        session.DeviceIdHash ==
+                        deviceIdHash);
 
             Assert.False(
-                session.IsTrustedDevice);
+                untrustedSession.IsTrustedDevice);
 
-            Assert.Empty(
+            var trustedDevices =
                 await dbContext.TrustedDevices
-                    .ToListAsync());
+                    .ToListAsync();
+
+            Assert.Single(
+                trustedDevices);
+
+            var initialTrustedDevice =
+                trustedDevices.Single();
+
+            Assert.Equal(
+                "initial-established-device",
+                initialTrustedDevice.DeviceIdHash);
+
+            Assert.True(
+                initialTrustedDevice.IsTrusted);
+
+            Assert.DoesNotContain(
+                trustedDevices,
+                device =>
+                    device.DeviceIdHash ==
+                    deviceIdHash);
         }
 
         var logoutResponse =
@@ -357,38 +387,19 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var loginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "access-token-device",
-                    "Access Token Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            loginResponse.StatusCode);
-
         var login =
-            await loginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            login);
-
-        Assert.Equal(
-            "StepUpRequired",
-            login.Status);
-
-        Assert.NotNull(
-            login.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                email,
+                password,
+                "access-token-device",
+                "Access Token Test Device");
 
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
                 new VerifyStepUpRequest(
-                    login.StepUpChallengeId.Value,
+                    login.StepUpChallengeId!.Value,
                     "123456",
                     false));
 
@@ -439,38 +450,19 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var loginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "refresh-token-device",
-                    "Refresh Token Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            loginResponse.StatusCode);
-
         var login =
-            await loginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            login);
-
-        Assert.Equal(
-            "StepUpRequired",
-            login.Status);
-
-        Assert.NotNull(
-            login.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                email,
+                password,
+                "refresh-token-device",
+                "Refresh Token Test Device");
 
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
                 new VerifyStepUpRequest(
-                    login.StepUpChallengeId.Value,
+                    login.StepUpChallengeId!.Value,
                     "123456",
                     false));
 
@@ -546,23 +538,52 @@ public sealed class VerifyStepUpEndpointHttpTests
             scope.ServiceProvider
                 .GetRequiredService<AuthDbContext>();
 
-        var refreshTokens =
-            (await dbContext.RefreshTokens
-                .ToArrayAsync())
-            .OrderBy(
-                token =>
-                    token.CreatedAtUtc)
-            .ToArray();
+        var sessions =
+            await dbContext.AuthSessions
+                .ToArrayAsync();
 
         Assert.Equal(
             2,
+            sessions.Length);
+
+        var stepUpSession =
+            sessions.Single(
+                session =>
+                    session.DeviceIdHash ==
+                    "refresh-token-device");
+
+        var refreshTokens =
+            await dbContext.RefreshTokens
+                .ToArrayAsync();
+
+        Assert.Equal(
+            3,
             refreshTokens.Length);
 
+        var stepUpSessionTokens =
+            refreshTokens
+                .Where(
+                    token =>
+                        token.SessionId ==
+                        stepUpSession.Id)
+                .OrderBy(
+                    token =>
+                        token.CreatedAtUtc)
+                .ToArray();
+
+        Assert.Equal(
+            2,
+            stepUpSessionTokens.Length);
+
         var oldToken =
-            refreshTokens[0];
+            stepUpSessionTokens.Single(
+                token =>
+                    token.ReplacedByTokenId is not null);
 
         var newToken =
-            refreshTokens[1];
+            stepUpSessionTokens.Single(
+                token =>
+                    token.ReplacedByTokenId is null);
 
         Assert.NotNull(
             oldToken.RevokedAtUtc);
@@ -608,38 +629,19 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var loginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "replay-test-device",
-                    "Replay Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            loginResponse.StatusCode);
-
         var login =
-            await loginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            login);
-
-        Assert.Equal(
-            "StepUpRequired",
-            login.Status);
-
-        Assert.NotNull(
-            login.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                email,
+                password,
+                "replay-test-device",
+                "Replay Test Device");
 
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
                 new VerifyStepUpRequest(
-                    login.StepUpChallengeId.Value,
+                    login.StepUpChallengeId!.Value,
                     "123456",
                     false));
 
@@ -711,10 +713,37 @@ public sealed class VerifyStepUpEndpointHttpTests
                 scope.ServiceProvider
                     .GetRequiredService<AuthDbContext>();
 
-            var tokens =
+            var sessions =
+                await dbContext.AuthSessions
+                    .AsNoTracking()
+                    .ToListAsync();
+
+            Assert.Equal(
+                2,
+                sessions.Count);
+
+            var replaySession =
+                sessions.Single(
+                    session =>
+                        session.DeviceIdHash ==
+                        "replay-test-device");
+
+            var allTokens =
                 await dbContext.RefreshTokens
                     .AsNoTracking()
                     .ToListAsync();
+
+            Assert.Equal(
+                3,
+                allTokens.Count);
+
+            var tokens =
+                allTokens
+                    .Where(
+                        token =>
+                            token.SessionId ==
+                            replaySession.Id)
+                    .ToList();
 
             Assert.Equal(
                 2,
@@ -822,36 +851,17 @@ public sealed class VerifyStepUpEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var loginResponse =
-            await client.PostAsJsonAsync(
-                "/api/auth/login",
-                new LoginRequest(
-                    email,
-                    password,
-                    "rate-limit-device",
-                    "Rate Limit Test Device"));
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            loginResponse.StatusCode);
-
         var login =
-            await loginResponse.Content
-                .ReadFromJsonAsync<LoginResponse>();
-
-        Assert.NotNull(
-            login);
-
-        Assert.Equal(
-            "StepUpRequired",
-            login.Status);
-
-        Assert.NotNull(
-            login.StepUpChallengeId);
+            await CreateStepUpChallengeAsync(
+                client,
+                email,
+                password,
+                "rate-limit-device",
+                "Rate Limit Test Device");
 
         var request =
             new VerifyStepUpRequest(
-                login.StepUpChallengeId.Value,
+                login.StepUpChallengeId!.Value,
                 "654321",
                 false);
 
@@ -888,6 +898,85 @@ public sealed class VerifyStepUpEndpointHttpTests
         Assert.Equal(
             1,
             challenge.FailedAttempts);
+    }
+    private static async Task<LoginResponse> CreateStepUpChallengeAsync(
+        HttpClient client,
+        string email,
+        string password,
+        string deviceIdHash,
+        string deviceName)
+    {
+        // First login establishes the account's initial device/session.
+        var initialLoginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    "initial-established-device",
+                    "Initial Established Device"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            initialLoginResponse.StatusCode);
+
+        var initialLogin =
+            await initialLoginResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            initialLogin);
+
+        Assert.Equal(
+            "AuthenticationComplete",
+            initialLogin.Status);
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                initialLogin.AccessToken));
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                initialLogin.RefreshToken));
+
+        Assert.Null(
+            initialLogin.StepUpChallengeId);
+
+        // A different device must now require step-up.
+        var newDeviceLoginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    deviceIdHash,
+                    deviceName));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            newDeviceLoginResponse.StatusCode);
+
+        var newDeviceLogin =
+            await newDeviceLoginResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            newDeviceLogin);
+
+        Assert.Equal(
+            "StepUpRequired",
+            newDeviceLogin.Status);
+
+        Assert.NotNull(
+            newDeviceLogin.StepUpChallengeId);
+
+        Assert.Null(
+            newDeviceLogin.AccessToken);
+
+        Assert.Null(
+            newDeviceLogin.RefreshToken);
+
+        return newDeviceLogin;
     }
     private static async Task SeedUserAsync(
         HttpTestApplication application,

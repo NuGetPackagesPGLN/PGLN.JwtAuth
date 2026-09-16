@@ -39,6 +39,30 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         using var client =
             application.CreateClient();
 
+        // The first-ever successful login establishes the
+        // account's initial device/session without step-up.
+        var initialLogin =
+            await LoginAsync(
+                client,
+                EmailAddress,
+                Password,
+                "initial-device-hash",
+                "Initial Device");
+
+        Assert.Equal(
+            "AuthenticationComplete",
+            initialLogin.Status);
+
+        Assert.NotNull(
+            initialLogin.AccessToken);
+
+        Assert.NotNull(
+            initialLogin.RefreshToken);
+
+        Assert.Null(
+            initialLogin.StepUpChallengeId);
+
+        // Logging in from a different device must require step-up.
         var firstLogin =
             await LoginAsync(
                 client,
@@ -60,6 +84,8 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         Assert.Null(
             firstLogin.RefreshToken);
 
+        // Completing step-up with rememberDevice=true should
+        // persist this device as trusted.
         var verifyResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/verify-step-up",
@@ -103,6 +129,8 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         client.DefaultRequestHeaders.Authorization =
             null;
 
+        // Logout revokes the current session but must not forget
+        // that this device was explicitly remembered.
         var logoutResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/logout",
@@ -129,6 +157,8 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         client.DefaultRequestHeaders.Authorization =
             null;
 
+        // The remembered device should now authenticate directly,
+        // even though its previous session was logged out.
         var secondLogin =
             await LoginAsync(
                 client,
@@ -169,6 +199,9 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
                         session.CreatedAtUtc)
                 .ToArrayAsync();
 
+        // Device B has exactly two sessions:
+        // the remembered session that was logged out,
+        // and the new session created by the second login.
         Assert.Equal(
             2,
             sessions.Length);
@@ -217,7 +250,76 @@ public sealed class TrustedDeviceLoginPersistenceHttpTests
         Assert.False(
             trustedDevice.IsRevoked);
     }
+    [Fact]
+    public async Task Login_AfterInitialDeviceWasLoggedOut_ShouldNotRequireStepUpForSameDevice()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
 
+        await SeedConfirmedUserAsync(
+            application,
+            EmailAddress,
+            Password);
+
+        using var client =
+            application.CreateClient();
+
+        // First-ever login establishes this device/session.
+        var firstLogin =
+            await LoginAsync(
+                client,
+                EmailAddress,
+                Password,
+                DeviceIdHash,
+                DeviceName);
+
+        Assert.Equal(
+            "AuthenticationComplete",
+            firstLogin.Status);
+
+        Assert.NotNull(
+            firstLogin.AccessToken);
+
+        Assert.NotNull(
+            firstLogin.RefreshToken);
+
+        Assert.Null(
+            firstLogin.StepUpChallengeId);
+
+        // Logout revokes the session.
+        var logoutResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/logout",
+                new LogoutRequest(
+                    firstLogin.RefreshToken));
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            logoutResponse.StatusCode);
+
+        // This is the same device that established the account's
+        // first successful login. It must not be treated as new.
+        var secondLogin =
+            await LoginAsync(
+                client,
+                EmailAddress,
+                Password,
+                DeviceIdHash,
+                DeviceName);
+
+        Assert.Equal(
+            "AuthenticationComplete",
+            secondLogin.Status);
+
+        Assert.NotNull(
+            secondLogin.AccessToken);
+
+        Assert.NotNull(
+            secondLogin.RefreshToken);
+
+        Assert.Null(
+            secondLogin.StepUpChallengeId);
+    }
     private static async Task<LoginResponse> LoginAsync(
         HttpClient client,
         string email,

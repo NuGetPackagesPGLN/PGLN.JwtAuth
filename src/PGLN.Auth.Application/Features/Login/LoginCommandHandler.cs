@@ -9,6 +9,7 @@ using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Domain.LoginAttempts;
 using PGLN.Auth.Domain.RefreshTokens;
 using PGLN.Auth.Domain.Sessions;
+using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.StepUpChallenges;
 using PGLN.Auth.Domain.Users;
 
@@ -245,7 +246,14 @@ public sealed class LoginCommandHandler
                     command.DeviceIdHash,
                     cancellationToken);
 
+        var hasAnySession =
+            await _authSessionRepository
+                .HasAnySessionAsync(
+                    user.Id,
+                    cancellationToken);
+
         var isNewDevice =
+            hasAnySession &&
             !hasSeenDevice;
 
         var trustedDevice =
@@ -259,7 +267,11 @@ public sealed class LoginCommandHandler
             trustedDevice is not null &&
             trustedDevice.IsTrusted;
 
-        if (!deviceIsTrusted)
+        var requiresStepUp =
+            hasAnySession &&
+            !deviceIsTrusted;
+
+        if (requiresStepUp)
         {
             var activeChallenge =
                 await _stepUpChallengeRepository
@@ -365,6 +377,24 @@ public sealed class LoginCommandHandler
         }
         session.TrustDevice();
 
+        // The first successful login establishes the account's
+        // initial device as a persistently trusted device.
+        if (!hasAnySession)
+        {
+            var initialTrustedDevice =
+                TrustedDevice.Create(
+                    TrustedDeviceId.New(),
+                    user.Id,
+                    command.DeviceIdHash,
+                    command.DeviceName,
+                    now);
+
+            await _trustedDeviceRepository
+                .AddAsync(
+                    initialTrustedDevice,
+                    cancellationToken);
+        }
+
         var rawRefreshToken =
             _refreshTokenGenerator.Generate();
 
@@ -457,21 +487,3 @@ public sealed class LoginCommandHandler
             cancellationToken);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

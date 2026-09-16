@@ -648,6 +648,19 @@ public sealed class SessionAwareJwtAuthenticationTests
                 result);
         }
 
+        public Task<bool> HasAnySessionAsync(
+            UserId userId,
+            CancellationToken cancellationToken = default)
+        {
+            var result =
+                _sessions.Values.Any(
+                    session =>
+                        session.UserId == userId);
+
+            return Task.FromResult(
+                result);
+        }
+
         public Task AddAsync(
             AuthSession session,
             CancellationToken cancellationToken = default)
@@ -659,9 +672,3 @@ public sealed class SessionAwareJwtAuthenticationTests
         }
     }
 }
-
-
-
-
-
-

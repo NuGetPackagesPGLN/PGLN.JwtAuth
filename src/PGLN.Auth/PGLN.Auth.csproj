@@ -1,9 +1,82 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>PGLN.Auth</PackageId>
+    <Version>0.1.0-preview.1</Version>
+
+    <Title>PGLN.Auth</Title>
+
+    <Description>
+      Reusable authentication and identity infrastructure for ASP.NET Core applications.
+    </Description>
+
+    <PackageTags>
+      authentication;authorization;aspnetcore;identity;jwt;oauth;security
+    </PackageTags>
+
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <RepositoryUrl>https://github.com/NuGetPackagesPGLN/PGLN.JwtAuth</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PGLN.Auth.Application\PGLN.Auth.Application.csproj" PrivateAssets="all" />
+
+    <ProjectReference Include="..\PGLN.Auth.AspNetCore\PGLN.Auth.AspNetCore.csproj" PrivateAssets="all" />
+
+    <ProjectReference Include="..\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" PrivateAssets="all" />
+
+    <ProjectReference Include="..\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" PrivateAssets="all" />
+
+    <ProjectReference Include="..\PGLN.Auth.EntityFrameworkCore.PostgreSql\PGLN.Auth.EntityFrameworkCore.PostgreSql.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" />
+
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
+
+    <PackageReference Include="Scrutor" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\PGLN.Auth.Application\bin\$(Configuration)\net10.0\PGLN.Auth.Application.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\PGLN.Auth.AspNetCore\bin\$(Configuration)\net10.0\PGLN.Auth.AspNetCore.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\PGLN.Auth.Contracts\bin\$(Configuration)\net10.0\PGLN.Auth.Contracts.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\PGLN.Auth.Domain\bin\$(Configuration)\net10.0\PGLN.Auth.Domain.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\PGLN.Auth.EntityFrameworkCore\bin\$(Configuration)\net10.0\PGLN.Auth.EntityFrameworkCore.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\PGLN.Auth.EntityFrameworkCore.PostgreSql\bin\$(Configuration)\net10.0\PGLN.Auth.EntityFrameworkCore.PostgreSql.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\PGLN.Auth.Infrastructure\bin\$(Configuration)\net10.0\PGLN.Auth.Infrastructure.dll" Pack="true" PackagePath="lib\net10.0" />
+  </ItemGroup>
 
 </Project>

@@ -276,6 +276,85 @@ public sealed class RevokeTrustedDeviceEndpointHttpTests
             response.StatusCode);
     }
 
+    [Fact]
+    public async Task Login_AfterTrustedDeviceWasRevoked_ShouldRequireStepUp()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
+            application,
+            EmailAddress,
+            Password);
+
+        using var client =
+            application.CreateClient();
+
+        var initialLogin =
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
+                client,
+                EmailAddress,
+                Password,
+                "device-one",
+                "Laptop");
+
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                initialLogin.AccessToken);
+
+        await TrustCurrentDeviceAsync(
+            client);
+
+        var trustedDevice =
+            await GetSingleTrustedDeviceAsync(
+                client);
+
+        var revokeResponse =
+            await client.DeleteAsync(
+                $"/api/auth/trusted-devices/{trustedDevice.Id.Value}");
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            revokeResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            null;
+
+        var loginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    EmailAddress,
+                    Password,
+                    "device-one",
+                    "Laptop"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            loginResponse.StatusCode);
+
+        var login =
+            await loginResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            login);
+
+        Assert.Equal(
+            "StepUpRequired",
+            login.Status);
+
+        Assert.NotNull(
+            login.StepUpChallengeId);
+
+        Assert.Null(
+            login.AccessToken);
+
+        Assert.Null(
+            login.RefreshToken);
+    }
     private static async Task TrustCurrentDeviceAsync(
         HttpClient client)
     {
@@ -312,5 +391,3 @@ public sealed class RevokeTrustedDeviceEndpointHttpTests
     }
 
 }
-
-

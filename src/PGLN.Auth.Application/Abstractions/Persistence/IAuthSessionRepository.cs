@@ -23,8 +23,11 @@ public interface IAuthSessionRepository
         string deviceIdHash,
         CancellationToken cancellationToken = default);
 
+    Task<bool> HasAnySessionAsync(
+        UserId userId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         AuthSession session,
         CancellationToken cancellationToken = default);
 }
-

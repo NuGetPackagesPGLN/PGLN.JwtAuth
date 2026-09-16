@@ -982,6 +982,118 @@ public sealed class OutboxProcessorIntegrationTests
             email.HtmlBody,
             StringComparison.Ordinal);
     }
+    [Fact]
+    public async Task ProcessAsync_WithStepUpVerificationCodeEvent_ShouldSendEmailAndMarkMessageProcessed()
+    {
+        await using var connection =
+            await CreateOpenConnectionAsync();
+
+        var options =
+            CreateOptions(connection);
+
+        await using var dbContext =
+            new AuthDbContext(options);
+
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var protector =
+            new TestPayloadProtector();
+
+        var emailSender =
+            new TestEmailSender();
+
+        using var serviceProvider =
+            CreateServiceProvider(
+                emailSender);
+
+        var dispatcher =
+            new IntegrationEventDispatcher(
+                serviceProvider);
+
+        var publisher =
+            new OutboxIntegrationEventPublisher(
+                dbContext,
+                protector);
+
+        var integrationEvent =
+            new StepUpVerificationCodeRequested(
+                Guid.NewGuid(),
+                UserId.New(),
+                PGLN.Auth.Domain.StepUpChallenges.StepUpChallengeId.New(),
+                "user@example.com",
+                "123456",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "PGLN.Auth.IntegrationTests/1.0",
+                Now.AddMinutes(10),
+                Now);
+
+        await publisher.PublishAsync(
+            integrationEvent);
+
+        await dbContext.SaveChangesAsync();
+
+        var storedMessage =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.False(
+            storedMessage.IsProcessed);
+
+        Assert.Equal(
+            typeof(StepUpVerificationCodeRequested).FullName,
+            storedMessage.Type);
+
+        var processor =
+            new OutboxProcessor(
+                dbContext,
+                protector,
+                new IntegrationEventTypeRegistry(),
+                dispatcher,
+                new TestClock(Now),
+                ProcessingOptions);
+
+        var processed =
+            await processor.ProcessAsync(
+                "integration-test-worker");
+
+        Assert.Equal(
+            1,
+            processed);
+
+        var processedMessage =
+            await dbContext
+                .OutboxMessages
+                .SingleAsync();
+
+        Assert.True(
+            processedMessage.IsProcessed);
+
+        Assert.Equal(
+            Now,
+            processedMessage.ProcessedAtUtc);
+
+        Assert.Equal(
+            1,
+            processedMessage.AttemptCount);
+
+        Assert.Null(
+            processedMessage.LastError);
+
+        var email =
+            Assert.Single(
+                emailSender.Messages);
+
+        Assert.Equal(
+            "user@example.com",
+            email.To);
+
+        Assert.Contains(
+            "123456",
+            email.HtmlBody,
+            StringComparison.Ordinal);
+    }
     private static ServiceProvider CreateServiceProvider(
         TestEmailSender sender)
     {
@@ -1034,6 +1146,10 @@ public sealed class OutboxProcessorIntegrationTests
             IIntegrationEventHandler<AccountLockedNotificationRequested>,
             AccountLockedNotificationRequestedHandler>();
 
+        services.AddTransient<
+            IIntegrationEventHandler<StepUpVerificationCodeRequested>,
+            StepUpVerificationCodeRequestedHandler>();
+
         return services.BuildServiceProvider();
     }
 
@@ -1075,18 +1191,3 @@ public sealed class OutboxProcessorIntegrationTests
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

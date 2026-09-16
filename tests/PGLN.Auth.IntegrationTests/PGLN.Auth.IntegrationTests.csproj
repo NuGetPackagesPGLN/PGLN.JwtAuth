@@ -1,10 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
@@ -13,16 +15,23 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+
   <ItemGroup>
+    <ProjectReference Include="..\..\src\PGLN.Auth\PGLN.Auth.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.Application\PGLN.Auth.Application.csproj" />
-    <ProjectReference Include="..\..\src\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.AspNetCore\PGLN.Auth.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.Contracts\PGLN.Auth.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.Domain\PGLN.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" />
   </ItemGroup>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
+
 </Project>

@@ -15,17 +15,20 @@ namespace PGLN.Auth.IntegrationTests.Http;
 public sealed class LoginEndpointHttpTests
 {
     [Fact]
-    public async Task Login_WithValidConfirmedUserOnUntrustedDevice_ShouldRequireStepUp()
+    public async Task Login_FromNewDeviceAfterInitialLogin_ShouldRequireStepUp()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
+
+        const string email =
+            "user@example.com";
 
         const string password =
             "SecretPassword123!";
 
         await SeedUserAsync(
             application,
-            "user@example.com",
+            email,
             password,
             confirmed:
                 true);
@@ -33,21 +36,58 @@ public sealed class LoginEndpointHttpTests
         using var client =
             application.CreateClient();
 
-        var response =
+        // First login establishes the initial device/session.
+        var initialLoginResponse =
             await client.PostAsJsonAsync(
                 "/api/auth/login",
                 new LoginRequest(
-                    "user@example.com",
+                    email,
                     password,
-                    "integration-test-device",
-                    "Integration Test Device"));
+                    "initial-device",
+                    "Initial Device"));
 
         Assert.Equal(
             HttpStatusCode.OK,
-            response.StatusCode);
+            initialLoginResponse.StatusCode);
+
+        var initialLogin =
+            await initialLoginResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            initialLogin);
+
+        Assert.Equal(
+            "AuthenticationComplete",
+            initialLogin.Status);
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                initialLogin.AccessToken));
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                initialLogin.RefreshToken));
+
+        Assert.Null(
+            initialLogin.StepUpChallengeId);
+
+        // A different device should require step-up.
+        var newDeviceResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    "new-device",
+                    "New Device"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            newDeviceResponse.StatusCode);
 
         var body =
-            await response.Content
+            await newDeviceResponse.Content
                 .ReadFromJsonAsync<LoginResponse>();
 
         Assert.NotNull(
@@ -58,7 +98,7 @@ public sealed class LoginEndpointHttpTests
             body.Status);
 
         Assert.Equal(
-            "user@example.com",
+            email,
             body.Email);
 
         Assert.NotEqual(
@@ -84,6 +124,7 @@ public sealed class LoginEndpointHttpTests
         Assert.Null(
             body.RefreshTokenExpiresAtUtc);
     }
+
     [Fact]
     public async Task Login_WithWrongPassword_ShouldReturn401()
     {
@@ -175,10 +216,13 @@ public sealed class LoginEndpointHttpTests
             response.StatusCode);
     }
     [Fact]
-    public async Task Login_WithValidCredentialsOnUntrustedDevice_ShouldPersistStepUpChallengeWithoutSessionOrTokens()
+    public async Task Login_FromNewDevice_ShouldPersistStepUpChallengeWithoutCreatingAdditionalSessionOrTokens()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
+
+        const string email =
+            "user@example.com";
 
         const string password =
             "SecretPassword123!";
@@ -186,7 +230,7 @@ public sealed class LoginEndpointHttpTests
         var user =
             await SeedUserAsync(
                 application,
-                "user@example.com",
+                email,
                 password,
                 confirmed:
                     true);
@@ -194,14 +238,48 @@ public sealed class LoginEndpointHttpTests
         using var client =
             application.CreateClient();
 
+        // Establish the account's initial device/session.
+        var initialLoginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    email,
+                    password,
+                    "initial-device",
+                    "Initial Device"));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            initialLoginResponse.StatusCode);
+
+        var initialLogin =
+            await initialLoginResponse.Content
+                .ReadFromJsonAsync<LoginResponse>();
+
+        Assert.NotNull(
+            initialLogin);
+
+        Assert.Equal(
+            "AuthenticationComplete",
+            initialLogin.Status);
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                initialLogin.AccessToken));
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                initialLogin.RefreshToken));
+
+        // Attempt authentication from a different device.
         var response =
             await client.PostAsJsonAsync(
                 "/api/auth/login",
                 new LoginRequest(
-                    "user@example.com",
+                    email,
                     password,
-                    "integration-test-device",
-                    "Integration Test Device"));
+                    "new-device",
+                    "New Device"));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -225,7 +303,13 @@ public sealed class LoginEndpointHttpTests
             body.AccessToken);
 
         Assert.Null(
+            body.AccessTokenExpiresAtUtc);
+
+        Assert.Null(
             body.RefreshToken);
+
+        Assert.Null(
+            body.RefreshTokenExpiresAtUtc);
 
         await using var scope =
             application.Application.Services
@@ -235,10 +319,18 @@ public sealed class LoginEndpointHttpTests
             scope.ServiceProvider
                 .GetRequiredService<AuthDbContext>();
 
-        Assert.Empty(
+        // Only the initial successful login should be recorded.
+        var loginAttempts =
             await dbContext.LoginAttempts
-                .ToListAsync());
+                .ToListAsync();
 
+        Assert.Single(
+            loginAttempts);
+
+        Assert.True(
+            loginAttempts[0].Succeeded);
+
+        // The new device should have exactly one pending challenge.
         var challenge =
             await dbContext.StepUpChallenges
                 .SingleAsync();
@@ -252,17 +344,36 @@ public sealed class LoginEndpointHttpTests
             challenge.Id.Value);
 
         Assert.Equal(
-            "integration-test-device",
+            "new-device",
             challenge.DeviceIdHash);
 
-        Assert.Empty(
+        // The step-up-required login must not issue another refresh token.
+        var refreshTokens =
             await dbContext.RefreshTokens
-                .ToListAsync());
+                .ToListAsync();
 
-        Assert.Empty(
+        Assert.Single(
+            refreshTokens);
+
+        // Only the initial device should have a session.
+        var sessions =
             await dbContext.AuthSessions
-                .ToListAsync());
+                .ToListAsync();
+
+        Assert.Single(
+            sessions);
+
+        Assert.Equal(
+            "initial-device",
+            sessions[0].DeviceIdHash);
+
+        Assert.DoesNotContain(
+            sessions,
+            session =>
+                session.DeviceIdHash ==
+                "new-device");
     }
+
     [Fact]
     public async Task Login_WhenMaximumFailedAttemptsReached_ShouldPersistLockout()
     {
@@ -675,17 +786,3 @@ public sealed class LoginEndpointHttpTests
         return user;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

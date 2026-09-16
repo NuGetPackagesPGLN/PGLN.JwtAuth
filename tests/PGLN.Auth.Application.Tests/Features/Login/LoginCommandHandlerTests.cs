@@ -1072,6 +1072,19 @@ public sealed class LoginCommandHandlerTests
         var sessions =
             new FakeAuthSessionRepository();
 
+        var existingSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-existing",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-2));
+
+        sessions.Seed(
+            existingSession);
+
         var integrationEvents =
             new FakeIntegrationEventPublisher();
 
@@ -1111,8 +1124,12 @@ public sealed class LoginCommandHandlerTests
         Assert.NotNull(
             result.Value.StepUpChallengeId);
 
-        Assert.Empty(
+        Assert.Single(
             sessions.Sessions);
+
+        Assert.Equal(
+            existingSession.Id,
+            sessions.Sessions.Single().Id);
 
         var integrationEvent =
             Assert.Single(
@@ -1480,8 +1497,8 @@ public sealed class LoginCommandHandlerTests
             revokedSession.Id,
             sessions.Sessions.Single().Id);
     }
-        [Fact]
-    public async Task HandleAsync_WhenDeviceIsNotTrusted_ShouldRequireStepUpWithoutCreatingSession()
+    [Fact]
+    public async Task HandleAsync_WhenUserLogsInForFirstTime_ShouldAuthenticateWithoutStepUp()
     {
         var user =
             CreateUser(
@@ -1496,21 +1513,41 @@ public sealed class LoginCommandHandlerTests
         var sessions =
             new FakeAuthSessionRepository();
 
+        var refreshTokens =
+            new FakeRefreshTokenRepository();
+
+        var accessTokenGenerator =
+            new FakeAccessTokenGenerator();
+
+        var refreshTokenGenerator =
+            new FakeRefreshTokenGenerator();
+
+        var challenges =
+            new FakeStepUpChallengeRepository();
+
+        var integrationEvents =
+            new FakeIntegrationEventPublisher();
+
         var result =
             await CreateHandler(
                     users,
                     new FakeLoginAttemptRepository(),
-                    new FakeRefreshTokenRepository(),
-                    new FakeAccessTokenGenerator(),
-                    new FakeRefreshTokenGenerator(),
-                    authSessionRepository: sessions,
+                    refreshTokens,
+                    accessTokenGenerator,
+                    refreshTokenGenerator,
+                    authSessionRepository:
+                        sessions,
                     trustedDeviceRepository:
-                        new FakeTrustedDeviceRepository())
+                        new FakeTrustedDeviceRepository(),
+                    stepUpChallengeRepository:
+                        challenges,
+                    integrationEventPublisher:
+                        integrationEvents)
                 .HandleAsync(
                     new LoginCommand(
                         user.Email.Value,
                         "correct-password",
-                        "device-hash-untrusted",
+                        "device-hash-first",
                         "Safari on iPhone",
                         "192.168.1.50",
                         "Safari/1.0"));
@@ -1519,20 +1556,68 @@ public sealed class LoginCommandHandlerTests
             result.IsSuccess);
 
         Assert.Equal(
-            LoginStatus.StepUpRequired,
+            LoginStatus.AuthenticationComplete,
             result.Value.Status);
 
-        Assert.Null(
+        Assert.Equal(
+            user.Id.Value,
+            result.Value.UserId);
+
+        Assert.Equal(
+            user.Email.Value,
+            result.Value.Email);
+
+        Assert.Equal(
+            "fake-access-token",
             result.Value.AccessToken);
 
-        Assert.Null(
+        Assert.NotNull(
+            result.Value.AccessTokenExpiresAtUtc);
+
+        Assert.Equal(
+            "raw-refresh-token",
             result.Value.RefreshToken);
 
         Assert.NotNull(
+            result.Value.RefreshTokenExpiresAtUtc);
+
+        Assert.Null(
             result.Value.StepUpChallengeId);
 
+        var session =
+            Assert.Single(
+                sessions.Sessions);
+
+        Assert.Equal(
+            user.Id,
+            session.UserId);
+
+        Assert.Equal(
+            "device-hash-first",
+            session.DeviceIdHash);
+
+        Assert.True(
+            session.IsTrustedDevice);
+
+        Assert.Single(
+            refreshTokens.Tokens);
+
+        Assert.Equal(
+            1,
+            accessTokenGenerator.GenerateCallCount);
+
+        Assert.Equal(
+            1,
+            refreshTokenGenerator.GenerateCallCount);
+
         Assert.Empty(
-            sessions.Sessions);
+            challenges.Challenges);
+
+        Assert.DoesNotContain(
+            integrationEvents.Events,
+            integrationEvent =>
+                integrationEvent is
+                    StepUpVerificationCodeRequested);
     }
     [Fact]
     public async Task HandleAsync_WhenDeviceIsUntrusted_ShouldRequireStepUpWithoutIssuingCredentials()
@@ -1549,6 +1634,19 @@ public sealed class LoginCommandHandlerTests
 
         var sessions =
             new FakeAuthSessionRepository();
+        var existingSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-hash-existing",
+                "Chrome on Windows",
+                "10.0.0.1",
+                "Chrome/1.0",
+                Now.AddDays(-2));
+
+        sessions.Seed(
+            existingSession);
+
 
         var refreshTokens =
             new FakeRefreshTokenRepository();
@@ -1632,8 +1730,12 @@ public sealed class LoginCommandHandlerTests
         Assert.NotNull(
             result.Value.StepUpChallengeId);
 
-        Assert.Empty(
+        Assert.Single(
             sessions.Sessions);
+
+        Assert.Equal(
+            existingSession.Id,
+            sessions.Sessions.Single().Id);
 
         Assert.Empty(
             refreshTokens.Tokens);
@@ -2343,56 +2445,3 @@ public sealed class LoginCommandHandlerTests
             refreshToken.SessionId,
             accessTokenGenerator.LastSessionId);
     }}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

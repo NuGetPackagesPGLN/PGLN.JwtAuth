@@ -205,7 +205,7 @@ public sealed class GetTrustedDevicesEndpointHttpTests
     }
 
     [Fact]
-    public async Task GetTrustedDevices_WhenNoneExist_ShouldReturnEmptyArray()
+    public async Task GetTrustedDevices_AfterInitialLogin_ShouldReturnInitialDevice()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
@@ -246,10 +246,19 @@ public sealed class GetTrustedDevicesEndpointHttpTests
         Assert.NotNull(
             devices);
 
-        Assert.Empty(
-            devices);
+        var device =
+            Assert.Single(
+                devices);
+
+        Assert.Equal(
+            "Laptop",
+            device.DeviceName);
+
+        Assert.True(
+            device.IsTrusted);
+
+        Assert.Null(
+            device.RevokedAtUtc);
     }
 
 }
-
-

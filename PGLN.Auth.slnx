@@ -12,6 +12,7 @@
     <Project Path="src/PGLN.Auth.Azure/PGLN.Auth.Azure.csproj" />
     <Project Path="src/PGLN.Auth.Contracts/PGLN.Auth.Contracts.csproj" />
     <Project Path="src/PGLN.Auth.Domain/PGLN.Auth.Domain.csproj" />
+    <Project Path="src/PGLN.Auth.EntityFrameworkCore.PostgreSql/PGLN.Auth.EntityFrameworkCore.PostgreSql.csproj" />
     <Project Path="src/PGLN.Auth.EntityFrameworkCore/PGLN.Auth.EntityFrameworkCore.csproj" />
     <Project Path="src/PGLN.Auth.Infrastructure/PGLN.Auth.Infrastructure.csproj" />
     <Project Path="src/PGLN.Auth/PGLN.Auth.csproj" />

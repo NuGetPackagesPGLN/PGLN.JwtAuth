@@ -4,8 +4,9 @@ using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
-using PGLN.Auth.Application.Features.Login;
 using PGLN.Auth.Application.Configuration;
+using PGLN.Auth.Application.Features.ForgotPassword;
+using PGLN.Auth.Application.Features.Login;
 using PGLN.Auth.Application.Messaging;
 
 namespace PGLN.Auth.Application;
@@ -20,7 +21,8 @@ public static class DependencyInjection
         RefreshTokenOptions? refreshTokenOptions = null,
         AccountLockoutOptions? accountLockoutOptions = null,
         LoginEmailThrottleOptions? loginEmailThrottleOptions = null,
-        StepUpChallengeOptions? stepUpChallengeOptions = null)
+        StepUpChallengeOptions? stepUpChallengeOptions = null,
+        PasswordResetOptions? passwordResetOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -42,12 +44,16 @@ public static class DependencyInjection
         stepUpChallengeOptions ??=
             new StepUpChallengeOptions();
 
+        passwordResetOptions ??=
+            new PasswordResetOptions();
+
         passwordPolicy.Validate();
         emailVerificationOptions.Validate();
         emailDeliveryOptions.Validate();
         refreshTokenOptions.Validate();
         accountLockoutOptions.Validate();
         stepUpChallengeOptions.Validate();
+        passwordResetOptions.Validate();
 
         services.AddSingleton(
             passwordPolicy);
@@ -66,6 +72,9 @@ public static class DependencyInjection
 
         services.AddSingleton(
             stepUpChallengeOptions);
+
+        services.AddSingleton(
+            passwordResetOptions);
 
         loginEmailThrottleOptions ??=
             new LoginEmailThrottleOptions();

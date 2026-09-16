@@ -18,7 +18,8 @@ public sealed class FakeAuthSessionRepository
     {
         var session =
             _sessions.SingleOrDefault(
-                session => session.Id == sessionId);
+                session =>
+                    session.Id == sessionId);
 
         return Task.FromResult(
             session);
@@ -72,6 +73,20 @@ public sealed class FakeAuthSessionRepository
         return Task.FromResult(
             hasSeenDevice);
     }
+
+    public Task<bool> HasAnySessionAsync(
+        UserId userId,
+        CancellationToken cancellationToken = default)
+    {
+        var hasAnySession =
+            _sessions.Any(
+                session =>
+                    session.UserId == userId);
+
+        return Task.FromResult(
+            hasAnySession);
+    }
+
     public Task AddAsync(
         AuthSession session,
         CancellationToken cancellationToken = default)
@@ -89,4 +104,3 @@ public sealed class FakeAuthSessionRepository
             session);
     }
 }
-

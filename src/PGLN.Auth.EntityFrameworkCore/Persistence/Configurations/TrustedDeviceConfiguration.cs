@@ -43,7 +43,7 @@ public sealed class TrustedDeviceConfiguration
             .Property(
                 device =>
                     device.DeviceIdHash)
-            .HasMaxLength(512)
+            .HasMaxLength(256)
             .IsRequired();
 
         builder

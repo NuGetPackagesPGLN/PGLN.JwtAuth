@@ -45,7 +45,7 @@ public sealed class StepUpChallengeConfiguration
                 challenge =>
                     challenge.DeviceIdHash)
             .HasMaxLength(
-                512)
+                256)
             .IsRequired();
 
         builder
@@ -112,4 +112,3 @@ public sealed class StepUpChallengeConfiguration
                 DeleteBehavior.Cascade);
     }
 }
-

@@ -82,6 +82,18 @@ public sealed class AuthSessionRepository
                     deviceIdHash,
                 cancellationToken);
     }
+    public Task<bool> HasAnySessionAsync(
+        UserId userId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.AuthSessions
+            .AnyAsync(
+                session =>
+                    session.UserId ==
+                    userId,
+                cancellationToken);
+    }
+
     public Task AddAsync(
         AuthSession session,
         CancellationToken cancellationToken = default)
@@ -96,4 +108,3 @@ public sealed class AuthSessionRepository
             .AsTask();
     }
 }
-

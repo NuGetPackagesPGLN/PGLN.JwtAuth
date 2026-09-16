@@ -1,4 +1,3 @@
-using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Events.Email;
 
 namespace PGLN.Auth.EntityFrameworkCore.Outbox;
@@ -14,12 +13,13 @@ public sealed class IntegrationEventTypeRegistry
             {
                 typeof(EmailConfirmationRequested),
                 typeof(EmailChangeConfirmationRequested),
-            typeof(EmailChangedNotificationRequested),
+                typeof(EmailChangedNotificationRequested),
                 typeof(WelcomeEmailRequested),
                 typeof(PasswordResetRequested),
                 typeof(PasswordChangedNotificationRequested),
                 typeof(NewDeviceLoginNotificationRequested),
-                typeof(AccountLockedNotificationRequested)
+                typeof(AccountLockedNotificationRequested),
+                typeof(StepUpVerificationCodeRequested)
             };
 
         _eventTypes =
@@ -49,4 +49,3 @@ public sealed class IntegrationEventTypeRegistry
         return eventType;
     }
 }
-
