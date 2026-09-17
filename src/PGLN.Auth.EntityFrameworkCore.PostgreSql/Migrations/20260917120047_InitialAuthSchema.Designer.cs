@@ -12,7 +12,7 @@ using PGLN.Auth.EntityFrameworkCore.Persistence;
 namespace PGLN.Auth.EntityFrameworkCore.PostgreSql.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20260915194726_InitialAuthSchema")]
+    [Migration("20260917120047_InitialAuthSchema")]
     partial class InitialAuthSchema
     {
         /// <inheritdoc />
@@ -268,7 +268,9 @@ namespace PGLN.Auth.EntityFrameworkCore.PostgreSql.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("UserId", "DeviceIdHash");
+                    b.HasIndex("UserId", "DeviceIdHash")
+                        .IsUnique()
+                        .HasFilter("\"RevokedAtUtc\" IS NULL");
 
                     b.ToTable("AuthSessions", (string)null);
                 });

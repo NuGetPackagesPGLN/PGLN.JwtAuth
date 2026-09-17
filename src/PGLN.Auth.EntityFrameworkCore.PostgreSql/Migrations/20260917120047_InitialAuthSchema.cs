@@ -275,7 +275,9 @@ namespace PGLN.Auth.EntityFrameworkCore.PostgreSql.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_AuthSessions_UserId_DeviceIdHash",
                 table: "AuthSessions",
-                columns: new[] { "UserId", "DeviceIdHash" });
+                columns: new[] { "UserId", "DeviceIdHash" },
+                unique: true,
+                filter: "\"RevokedAtUtc\" IS NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_EmailChangeTokens_NormalizedNewEmail",

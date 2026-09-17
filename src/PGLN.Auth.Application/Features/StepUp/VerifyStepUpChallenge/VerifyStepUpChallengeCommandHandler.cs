@@ -180,24 +180,41 @@ public sealed class VerifyStepUpChallengeCommandHandler
         }
 
         var session =
-            AuthSession.Create(
-                AuthSessionId.New(),
-                user.Id,
-                challenge.DeviceIdHash,
-                challenge.DeviceName,
+            await _authSessionRepository
+                .GetActiveByDeviceIdHashAsync(
+                    user.Id,
+                    challenge.DeviceIdHash,
+                    cancellationToken);
+
+        if (session is null)
+        {
+            session =
+                AuthSession.Create(
+                    AuthSessionId.New(),
+                    user.Id,
+                    challenge.DeviceIdHash,
+                    challenge.DeviceName,
+                    null,
+                    null,
+                    now);
+
+            await _authSessionRepository
+                .AddAsync(
+                    session,
+                    cancellationToken);
+        }
+        else
+        {
+            session.Touch(
+                now,
                 null,
-                null,
-                now);
+                null);
+        }
 
         if (command.RememberDevice)
         {
             session.TrustDevice();
         }
-
-        await _authSessionRepository
-            .AddAsync(
-                session,
-                cancellationToken);
 
         var rawRefreshToken =
             _refreshTokenGenerator.Generate();
@@ -252,5 +269,3 @@ public sealed class VerifyStepUpChallengeCommandHandler
                 refreshToken.ExpiresAtUtc));
     }
 }
-
-

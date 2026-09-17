@@ -348,6 +348,84 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
             fixture.RefreshTokenRepository.Tokens);
     }
 
+    [Fact]
+    public async Task HandleAsync_WithExistingActiveSession_ShouldReuseSessionInsteadOfCreatingDuplicate()
+    {
+        var fixture =
+            CreateFixture();
+
+        var existingSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                fixture.User.Id,
+                DeviceIdHash,
+                DeviceName,
+                "127.0.0.1",
+                "Test User Agent",
+                Now.AddMinutes(-5));
+
+        fixture.AuthSessionRepository.Seed(
+            existingSession);
+
+        var existingSessionId =
+            existingSession.Id;
+
+        var result =
+            await fixture.Handler.HandleAsync(
+                new VerifyStepUpChallengeCommand(
+                    fixture.Challenge.Id.Value,
+                    ValidCode,
+                    true));
+
+        Assert.True(
+            result.IsSuccess);
+
+        var session =
+            Assert.Single(
+                fixture.AuthSessionRepository.Sessions);
+
+        Assert.Same(
+            existingSession,
+            session);
+
+        Assert.Equal(
+            existingSessionId,
+            session.Id);
+
+        Assert.True(
+            session.IsTrustedDevice);
+
+        Assert.Equal(
+            DeviceTrustStatus.Trusted,
+            session.DeviceTrustStatus);
+
+        Assert.Equal(
+            Now,
+            session.LastSeenAtUtc);
+
+        var trustedDevice =
+            Assert.Single(
+                fixture.TrustedDeviceRepository.Devices);
+
+        Assert.Equal(
+            fixture.User.Id,
+            trustedDevice.UserId);
+
+        Assert.Equal(
+            DeviceIdHash,
+            trustedDevice.DeviceIdHash);
+
+        Assert.True(
+            trustedDevice.IsTrusted);
+
+        var refreshToken =
+            Assert.Single(
+                fixture.RefreshTokenRepository.Tokens);
+
+        Assert.Equal(
+            existingSessionId,
+            refreshToken.SessionId);
+    }
     private static TestFixture CreateFixture(
         DateTimeOffset? clockNow = null)
     {
@@ -470,4 +548,3 @@ public sealed class VerifyStepUpChallengeCommandHandlerTests
         FakeRefreshTokenGenerator RefreshTokenGenerator,
         FakeUnitOfWork UnitOfWork);
 }
-

@@ -147,7 +147,10 @@ public sealed class AuthSessionConfiguration
                     {
                         session.UserId,
                         session.DeviceIdHash
-                    });
+                    })
+            .IsUnique()
+            .HasFilter(
+                "\"RevokedAtUtc\" IS NULL");
 
         builder
             .HasOne<User>()
