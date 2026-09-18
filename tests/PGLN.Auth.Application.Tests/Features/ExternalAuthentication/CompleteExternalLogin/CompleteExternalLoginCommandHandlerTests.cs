@@ -43,7 +43,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-123",
+                        "Chrome on Windows")
+            };
 
         var externalLoginRepository =
             new FakeExternalLoginRepository();
@@ -100,9 +109,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "authorization-code",
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-123",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -121,6 +127,10 @@ public sealed class CompleteExternalLoginCommandHandlerTests
         Assert.Equal(
             "test-code-verifier",
             provider.LastCodeVerifier);
+
+        Assert.Equal(
+            "https://localhost/signin-google",
+            provider.LastRedirectUri);
 
         Assert.NotNull(
             result.Value);
@@ -233,7 +243,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-456",
+                        "Chrome on Windows")
+            };
 
         var userRepository =
             new FakeUserRepository();
@@ -310,9 +329,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "authorization-code",
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-456",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -331,6 +347,10 @@ public sealed class CompleteExternalLoginCommandHandlerTests
         Assert.Equal(
             "test-code-verifier",
             provider.LastCodeVerifier);
+
+        Assert.Equal(
+            "https://localhost/signin-google",
+            provider.LastRedirectUri);
 
         Assert.NotNull(
             result.Value);
@@ -407,7 +427,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-789",
+                        "Chrome on Windows")
+            };
 
         var userRepository =
             new FakeUserRepository();
@@ -474,9 +503,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "authorization-code",
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-789",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -601,9 +627,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "authorization-code",
                 "tampered-state",
-                "https://localhost/signin-google",
-                "device-hash-tampered",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -675,7 +698,9 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                     new(
                         "GitHub",
                         "https://localhost/signin-google",
-                        "test-code-verifier")
+                        "test-code-verifier",
+                        "device-hash-provider-mismatch",
+                        "Chrome on Windows")
             };
 
         var externalLoginRepository =
@@ -733,9 +758,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "authorization-code",
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-provider-mismatch",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -766,7 +788,7 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             unitOfWork.SaveChangesCallCount);
     }
     [Fact]
-    public async Task HandleAsync_WhenStateRedirectUriDoesNotMatchCommand_ShouldReturnInvalidState()
+    public async Task HandleAsync_ShouldUseRedirectUriFromProtectedState()
     {
         var now =
             new DateTimeOffset(
@@ -795,7 +817,9 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                     new(
                         "Google",
                         "https://localhost/other-callback",
-                        "test-code-verifier")
+                        "test-code-verifier",
+                        "device-hash-redirect-mismatch",
+                        "Chrome on Windows")
             };
 
         var externalLoginRepository =
@@ -853,9 +877,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "authorization-code",
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-redirect-mismatch",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -865,24 +886,36 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 command);
 
         Assert.True(
-            result.IsFailure);
+            result.IsSuccess);
 
         Assert.Equal(
-            ExternalAuthenticationErrors.InvalidState,
-            result.Error);
-
-        Assert.Equal(
-            0,
+            1,
             provider.GetIdentityCallCount);
 
-        Assert.Empty(
+        Assert.Equal(
+            "authorization-code",
+            provider.LastAuthorizationCode);
+
+        Assert.Equal(
+            "https://localhost/other-callback",
+            provider.LastRedirectUri);
+
+        Assert.Equal(
+            "test-code-verifier",
+            provider.LastCodeVerifier);
+
+        Assert.Single(
             authSessionRepository.Sessions);
 
-        Assert.Empty(
+        Assert.Equal(
+            "device-hash-redirect-mismatch",
+            authSessionRepository.Sessions.Single().DeviceIdHash);
+
+        Assert.Single(
             refreshTokenRepository.Tokens);
 
         Assert.Equal(
-            0,
+            1,
             unitOfWork.SaveChangesCallCount);
     }
     [Fact]
@@ -914,7 +947,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-123",
+                        "Chrome on Windows")
+            };
 
         var externalLoginRepository =
             new FakeExternalLoginRepository();
@@ -971,9 +1013,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 "invalid-authorization-code",
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-provider-failure",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -1102,9 +1141,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 null,
                 "tampered-state",
-                "https://localhost/signin-google",
-                "device-hash-denied",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 "access_denied");
@@ -1170,7 +1206,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-123",
+                        "Chrome on Windows")
+            };
 
         var externalLoginRepository =
             new FakeExternalLoginRepository();
@@ -1227,9 +1272,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 null,
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-denied",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 "access_denied");
@@ -1301,7 +1343,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-123",
+                        "Chrome on Windows")
+            };
 
         var externalLoginRepository =
             new FakeExternalLoginRepository();
@@ -1358,9 +1409,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 null,
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-provider-rejected",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 "server_error");
@@ -1432,7 +1480,16 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             provider);
 
         var stateProtector =
-            new FakeExternalAuthenticationStateProtector();
+            new FakeExternalAuthenticationStateProtector
+            {
+                State =
+                    new(
+                        "Google",
+                        "https://localhost/signin-google",
+                        "test-code-verifier",
+                        "device-hash-123",
+                        "Chrome on Windows")
+            };
 
         var externalLoginRepository =
             new FakeExternalLoginRepository();
@@ -1489,9 +1546,6 @@ public sealed class CompleteExternalLoginCommandHandlerTests
                 ExternalLoginProvider.Google,
                 null,
                 "protected-state",
-                "https://localhost/signin-google",
-                "device-hash-missing-code",
-                "Chrome on Windows",
                 "127.0.0.1",
                 "Chrome/1.0",
                 null);
@@ -1539,10 +1593,3 @@ public sealed class CompleteExternalLoginCommandHandlerTests
             0,
             unitOfWork.SaveChangesCallCount);
     }}
-
-
-
-
-
-
-

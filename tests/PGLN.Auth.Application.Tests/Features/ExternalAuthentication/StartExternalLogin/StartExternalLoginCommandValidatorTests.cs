@@ -15,7 +15,9 @@ public sealed class StartExternalLoginCommandValidatorTests
         var command =
             new StartExternalLoginCommand(
                 ExternalLoginProvider.Google,
-                "https://example.com/auth/google/callback");
+                "https://example.com/auth/google/callback",
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             _validator.TestValidate(
@@ -30,7 +32,9 @@ public sealed class StartExternalLoginCommandValidatorTests
         var command =
             new StartExternalLoginCommand(
                 ExternalLoginProvider.Google,
-                string.Empty);
+                string.Empty,
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             _validator.TestValidate(
@@ -46,7 +50,9 @@ public sealed class StartExternalLoginCommandValidatorTests
         var command =
             new StartExternalLoginCommand(
                 ExternalLoginProvider.Google,
-                "/auth/google/callback");
+                "/auth/google/callback",
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             _validator.TestValidate(
@@ -62,7 +68,9 @@ public sealed class StartExternalLoginCommandValidatorTests
         var command =
             new StartExternalLoginCommand(
                 ExternalLoginProvider.Google,
-                "http://example.com/auth/google/callback");
+                "http://example.com/auth/google/callback",
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             _validator.TestValidate(
@@ -78,7 +86,9 @@ public sealed class StartExternalLoginCommandValidatorTests
         var command =
             new StartExternalLoginCommand(
                 (ExternalLoginProvider)999,
-                "https://example.com/auth/google/callback");
+                "https://example.com/auth/google/callback",
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             _validator.TestValidate(
@@ -86,5 +96,41 @@ public sealed class StartExternalLoginCommandValidatorTests
 
         result.ShouldHaveValidationErrorFor(
             x => x.Provider);
+    }
+
+    [Fact]
+    public void Validate_WhenDeviceIdHashIsEmpty_ShouldHaveError()
+    {
+        var command =
+            new StartExternalLoginCommand(
+                ExternalLoginProvider.Google,
+                "https://example.com/auth/google/callback",
+                string.Empty,
+                "Test Device");
+
+        var result =
+            _validator.TestValidate(
+                command);
+
+        result.ShouldHaveValidationErrorFor(
+            x => x.DeviceIdHash);
+    }
+
+    [Fact]
+    public void Validate_WhenDeviceNameIsNull_ShouldNotHaveError()
+    {
+        var command =
+            new StartExternalLoginCommand(
+                ExternalLoginProvider.Google,
+                "https://example.com/auth/google/callback",
+                "test-device-id-hash",
+                null);
+
+        var result =
+            _validator.TestValidate(
+                command);
+
+        result.ShouldNotHaveValidationErrorFor(
+            x => x.DeviceName);
     }
 }

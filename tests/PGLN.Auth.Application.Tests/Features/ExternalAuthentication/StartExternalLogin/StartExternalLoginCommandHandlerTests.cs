@@ -36,7 +36,9 @@ public sealed class StartExternalLoginCommandHandlerTests
         var command =
             new StartExternalLoginCommand(
                 ExternalLoginProvider.Google,
-                "https://example.com/auth/google/callback");
+                "https://example.com/auth/google/callback",
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             await handler.HandleAsync(
@@ -64,6 +66,14 @@ public sealed class StartExternalLoginCommandHandlerTests
         Assert.Equal(
             "test-code-verifier",
             stateProtector.LastCodeVerifier);
+
+        Assert.Equal(
+            "test-device-id-hash",
+            stateProtector.LastDeviceIdHash);
+
+        Assert.Equal(
+            "Test Device",
+            stateProtector.LastDeviceName);
 
         Assert.Equal(
             "test-code-challenge",
@@ -98,7 +108,9 @@ public sealed class StartExternalLoginCommandHandlerTests
         var command =
             new StartExternalLoginCommand(
                 ExternalLoginProvider.Google,
-                "https://example.com/auth/google/callback");
+                "https://example.com/auth/google/callback",
+                "test-device-id-hash",
+                "Test Device");
 
         var result =
             await handler.HandleAsync(
@@ -197,14 +209,22 @@ public sealed class StartExternalLoginCommandHandlerTests
 
         public string? LastCodeVerifier { get; private set; }
 
+        public string? LastDeviceIdHash { get; private set; }
+
+        public string? LastDeviceName { get; private set; }
+
         public string Protect(
             string provider,
             string redirectUri,
-            string codeVerifier)
+            string codeVerifier,
+            string deviceIdHash,
+            string? deviceName)
         {
             LastProvider = provider;
             LastRedirectUri = redirectUri;
             LastCodeVerifier = codeVerifier;
+            LastDeviceIdHash = deviceIdHash;
+            LastDeviceName = deviceName;
 
             return "protected-state";
         }

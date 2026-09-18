@@ -20,6 +20,8 @@ public static class StartGoogleExternalLoginEndpoint
 
     private static async Task<IResult> HandleAsync(
         string redirectUri,
+        string deviceIdHash,
+        string? deviceName,
         IRequestDispatcher dispatcher,
         CancellationToken cancellationToken)
     {
@@ -27,7 +29,9 @@ public static class StartGoogleExternalLoginEndpoint
             await dispatcher.SendAsync(
                 new StartExternalLoginCommand(
                     ExternalLoginProvider.Google,
-                    redirectUri),
+                    redirectUri,
+                    deviceIdHash,
+                    deviceName),
                 cancellationToken);
 
         if (result.IsSuccess)

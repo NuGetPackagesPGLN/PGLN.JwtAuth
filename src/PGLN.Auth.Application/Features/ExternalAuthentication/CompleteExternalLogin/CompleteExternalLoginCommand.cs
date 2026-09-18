@@ -8,9 +8,6 @@ public sealed record CompleteExternalLoginCommand(
     ExternalLoginProvider Provider,
     string? AuthorizationCode,
     string State,
-    string RedirectUri,
-    string DeviceIdHash,
-    string? DeviceName,
     string? IpAddress,
     string? UserAgent,
     string? ProviderError)

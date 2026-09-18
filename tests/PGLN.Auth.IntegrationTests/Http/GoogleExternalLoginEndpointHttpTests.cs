@@ -15,13 +15,13 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         using var client =
             application.CreateClient();
-
         const string redirectUri =
             "https://app.example.test/signin-google";
-
         var requestUri =
             $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(redirectUri)}";
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
+            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
 
         var response =
             await client.GetAsync(
@@ -96,7 +96,9 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         var requestUri =
             $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(redirectUri)}";
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
+            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
 
         var response =
             await client.GetAsync(
@@ -120,107 +122,26 @@ public sealed class GoogleExternalLoginEndpointHttpTests
         await using var application =
             await HttpTestApplication.CreateAsync();
 
-        using var client =
-            application.CreateClient();
-
-        const string redirectUri =
-            "https://app.example.test/signin-google";
-
-        var startRequestUri =
-            $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(redirectUri)}";
-
-        var startResponse =
-            await client.GetAsync(
-                startRequestUri);
-
-        Assert.Equal(
-            HttpStatusCode.Redirect,
-            startResponse.StatusCode);
-
-        Assert.NotNull(
-            startResponse.Headers.Location);
-
-        var authorizationUri =
-            startResponse.Headers.Location!;
-
-        var authorizationQuery =
-            Microsoft.AspNetCore.WebUtilities.QueryHelpers
-                .ParseQuery(
-                    authorizationUri.Query);
-
-        Assert.True(
-            authorizationQuery.TryGetValue(
-                "state",
-                out var stateValues));
-
-        var state =
-            stateValues.ToString();
-
-        Assert.False(
-            string.IsNullOrWhiteSpace(
-                state));
-
-        var callbackRequestUri =
-            $"/api/auth/external/google/callback" +
-            $"?code={Uri.EscapeDataString("integration-test-code")}" +
-            $"&state={Uri.EscapeDataString(state)}" +
-            $"&redirectUri={Uri.EscapeDataString(redirectUri)}" +
-            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
-            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
-
-        var callbackResponse =
-            await client.GetAsync(
-                callbackRequestUri);
-
-        Assert.Equal(
-            HttpStatusCode.OK,
-            callbackResponse.StatusCode);
-
-        var payload =
-            await callbackResponse.Content
-                .ReadAsStringAsync();
-
-        Assert.Contains(
-            "google-user@example.com",
-            payload);
-
-        Assert.Contains(
-            "\"isNewUser\":true",
-            payload);
-
-        Assert.Contains(
-            "\"accessToken\"",
-            payload);
-
-        Assert.Contains(
-            "\"refreshToken\"",
-            payload);
-    }
-    [Fact]
-    public async Task CompleteGoogleLogin_WhenProviderFails_ShouldReturnBadGateway()
-    {
-        await using var application =
-            await HttpTestApplication.CreateAsync();
-
         var provider =
             application.Application.Services
                 .GetRequiredService<
                     HttpTestGoogleExternalIdentityProvider>();
 
-        provider.ExceptionToThrow =
-            new ExternalIdentityProviderException(
-                "Google authorization-code exchange failed.");
-
         using var client =
             application.CreateClient();
-
         const string redirectUri =
             "https://app.example.test/signin-google";
+        const string deviceIdHash =
+            "integration-test-device";
+
+        const string deviceName =
+            "Integration Test Device";
 
         var startRequestUri =
             $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(redirectUri)}";
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&deviceIdHash={Uri.EscapeDataString(deviceIdHash)}" +
+            $"&deviceName={Uri.EscapeDataString(deviceName)}";
 
         var startResponse =
             await client.GetAsync(
@@ -255,10 +176,99 @@ public sealed class GoogleExternalLoginEndpointHttpTests
         var callbackRequestUri =
             $"/api/auth/external/google/callback" +
             $"?code={Uri.EscapeDataString("integration-test-code")}" +
-            $"&state={Uri.EscapeDataString(state)}" +
-            $"&redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&state={Uri.EscapeDataString(state)}";
+
+        var callbackResponse =
+            await client.GetAsync(
+                callbackRequestUri);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            callbackResponse.StatusCode);
+
+        var payload =
+            await callbackResponse.Content
+                .ReadAsStringAsync();
+
+        Assert.Contains(
+            "google-user@example.com",
+            payload);
+
+        Assert.Contains(
+            "\"isNewUser\":true",
+            payload);
+
+        Assert.Contains(
+            "\"accessToken\"",
+            payload);
+
+        Assert.Contains(
+            "\"refreshToken\"",
+            payload);
+
+        Assert.Equal(
+            1,
+            provider.GetIdentityCallCount);
+    }
+    [Fact]
+    public async Task CompleteGoogleLogin_WhenProviderFails_ShouldReturnBadGateway()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        var provider =
+            application.Application.Services
+                .GetRequiredService<
+                    HttpTestGoogleExternalIdentityProvider>();
+
+        provider.ExceptionToThrow =
+            new ExternalIdentityProviderException(
+                "Google authorization-code exchange failed.");
+
+        using var client =
+            application.CreateClient();
+        const string redirectUri =
+            "https://app.example.test/signin-google";
+        var startRequestUri =
+            $"/api/auth/external/google/start" +
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
             $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
             $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
+
+        var startResponse =
+            await client.GetAsync(
+                startRequestUri);
+
+        Assert.Equal(
+            HttpStatusCode.Redirect,
+            startResponse.StatusCode);
+
+        Assert.NotNull(
+            startResponse.Headers.Location);
+
+        var authorizationUri =
+            startResponse.Headers.Location!;
+
+        var authorizationQuery =
+            QueryHelpers.ParseQuery(
+                authorizationUri.Query);
+
+        Assert.True(
+            authorizationQuery.TryGetValue(
+                "state",
+                out var stateValues));
+
+        var state =
+            stateValues.ToString();
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                state));
+
+        var callbackRequestUri =
+            $"/api/auth/external/google/callback" +
+            $"?code={Uri.EscapeDataString("integration-test-code")}" +
+            $"&state={Uri.EscapeDataString(state)}";
 
         var callbackResponse =
             await client.GetAsync(
@@ -293,20 +303,13 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         using var client =
             application.CreateClient();
-
-        const string redirectUri =
-            "https://app.example.test/signin-google";
-
         const string tamperedState =
             "this-is-not-a-valid-protected-oauth-state";
 
         var callbackRequestUri =
             $"/api/auth/external/google/callback" +
             $"?code={Uri.EscapeDataString("integration-test-code")}" +
-            $"&state={Uri.EscapeDataString(tamperedState)}" +
-            $"&redirectUri={Uri.EscapeDataString(redirectUri)}" +
-            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
-            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
+            $"&state={Uri.EscapeDataString(tamperedState)}";
 
         var response =
             await client.GetAsync(
@@ -329,7 +332,7 @@ public sealed class GoogleExternalLoginEndpointHttpTests
             provider.GetIdentityCallCount);
     }
     [Fact]
-    public async Task CompleteGoogleLogin_WithMismatchedRedirectUri_ShouldReturnUnauthorized()
+    public async Task CompleteGoogleLogin_ShouldUseRedirectUriFromProtectedState()
     {
         await using var application =
             await HttpTestApplication.CreateAsync();
@@ -341,13 +344,19 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         using var client =
             application.CreateClient();
-
-        const string originalRedirectUri =
+        const string redirectUri =
             "https://app.example.test/signin-google";
+        const string deviceIdHash =
+            "integration-test-device";
+
+        const string deviceName =
+            "Integration Test Device";
 
         var startRequestUri =
             $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(originalRedirectUri)}";
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&deviceIdHash={Uri.EscapeDataString(deviceIdHash)}" +
+            $"&deviceName={Uri.EscapeDataString(deviceName)}";
 
         var startResponse =
             await client.GetAsync(
@@ -376,36 +385,34 @@ public sealed class GoogleExternalLoginEndpointHttpTests
             string.IsNullOrWhiteSpace(
                 state));
 
-        const string mismatchedRedirectUri =
-            "https://different.example.test/signin-google";
-
         var callbackRequestUri =
             $"/api/auth/external/google/callback" +
             $"?code={Uri.EscapeDataString("integration-test-code")}" +
-            $"&state={Uri.EscapeDataString(state)}" +
-            $"&redirectUri={Uri.EscapeDataString(mismatchedRedirectUri)}" +
-            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
-            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
+            $"&state={Uri.EscapeDataString(state)}";
 
         var response =
             await client.GetAsync(
                 callbackRequestUri);
 
         Assert.Equal(
-            HttpStatusCode.Unauthorized,
+            HttpStatusCode.OK,
             response.StatusCode);
 
-        var payload =
-            await response.Content
-                .ReadAsStringAsync();
-
-        Assert.Contains(
-            "ExternalAuthentication.InvalidState",
-            payload);
+        Assert.Equal(
+            1,
+            provider.GetIdentityCallCount);
 
         Assert.Equal(
-            0,
-            provider.GetIdentityCallCount);
+            "integration-test-code",
+            provider.LastAuthorizationCode);
+
+        Assert.Equal(
+            redirectUri,
+            provider.LastRedirectUri);
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                provider.LastCodeVerifier));
     }
     [Fact]
     public async Task CompleteGoogleLogin_WhenUserDeniesAuthorization_ShouldReturnUnauthorized()
@@ -420,13 +427,13 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         using var client =
             application.CreateClient();
-
         const string redirectUri =
             "https://app.example.test/signin-google";
-
         var startRequestUri =
             $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(redirectUri)}";
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
+            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
 
         var startResponse =
             await client.GetAsync(
@@ -459,10 +466,7 @@ public sealed class GoogleExternalLoginEndpointHttpTests
             $"/api/auth/external/google/callback" +
             $"?error={Uri.EscapeDataString("access_denied")}" +
             $"&error_description={Uri.EscapeDataString("The user denied access.")}" +
-            $"&state={Uri.EscapeDataString(state)}" +
-            $"&redirectUri={Uri.EscapeDataString(redirectUri)}" +
-            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
-            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
+            $"&state={Uri.EscapeDataString(state)}";
 
         var response =
             await client.GetAsync(
@@ -501,20 +505,13 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         using var client =
             application.CreateClient();
-
-        const string redirectUri =
-            "https://app.example.test/signin-google";
-
         const string tamperedState =
             "this-is-not-a-valid-protected-oauth-state";
 
         var callbackRequestUri =
             $"/api/auth/external/google/callback" +
             $"?error={Uri.EscapeDataString("access_denied")}" +
-            $"&state={Uri.EscapeDataString(tamperedState)}" +
-            $"&redirectUri={Uri.EscapeDataString(redirectUri)}" +
-            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
-            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
+            $"&state={Uri.EscapeDataString(tamperedState)}";
 
         var response =
             await client.GetAsync(
@@ -553,13 +550,13 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         using var client =
             application.CreateClient();
-
         const string redirectUri =
             "https://app.example.test/signin-google";
-
         var startRequestUri =
             $"/api/auth/external/google/start" +
-            $"?redirectUri={Uri.EscapeDataString(redirectUri)}";
+            $"?redirectUri={Uri.EscapeDataString(redirectUri)}" +
+            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
+            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
 
         var startResponse =
             await client.GetAsync(
@@ -590,10 +587,7 @@ public sealed class GoogleExternalLoginEndpointHttpTests
 
         var callbackRequestUri =
             $"/api/auth/external/google/callback" +
-            $"?state={Uri.EscapeDataString(state)}" +
-            $"&redirectUri={Uri.EscapeDataString(redirectUri)}" +
-            $"&deviceIdHash={Uri.EscapeDataString("integration-test-device")}" +
-            $"&deviceName={Uri.EscapeDataString("Integration Test Device")}";
+            $"?state={Uri.EscapeDataString(state)}";
 
         var response =
             await client.GetAsync(
@@ -615,15 +609,3 @@ public sealed class GoogleExternalLoginEndpointHttpTests
             0,
             provider.GetIdentityCallCount);
     }}
-
-
-
-
-
-
-
-
-
-
-
-

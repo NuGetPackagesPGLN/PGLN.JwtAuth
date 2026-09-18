@@ -70,7 +70,9 @@ public sealed class StartExternalLoginCommandHandler
             _stateProtector.Protect(
                 command.Provider.ToString(),
                 command.RedirectUri,
-                pkce.CodeVerifier);
+                pkce.CodeVerifier,
+                command.DeviceIdHash,
+                command.DeviceName);
 
         string authorizationUrl;
 
@@ -95,5 +97,3 @@ public sealed class StartExternalLoginCommandHandler
                     authorizationUrl)));
     }
 }
-
-

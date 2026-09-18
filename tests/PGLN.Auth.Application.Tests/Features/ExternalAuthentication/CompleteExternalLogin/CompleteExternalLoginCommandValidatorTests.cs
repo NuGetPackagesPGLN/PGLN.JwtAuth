@@ -57,23 +57,6 @@ public sealed class CompleteExternalLoginCommandValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenRedirectUriIsEmpty_ShouldHaveError()
-    {
-        var command =
-            CreateValidCommand() with
-            {
-                RedirectUri = string.Empty
-            };
-
-        var result =
-            await _validator.TestValidateAsync(
-                command);
-
-        result.ShouldHaveValidationErrorFor(
-            value => value.RedirectUri);
-    }
-
-    [Fact]
     public async Task Validate_WhenProviderIsInvalid_ShouldHaveError()
     {
         var command =
@@ -110,42 +93,6 @@ public sealed class CompleteExternalLoginCommandValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenRedirectUriIsTooLong_ShouldHaveError()
-    {
-        var command =
-            CreateValidCommand() with
-            {
-                RedirectUri =
-                    new string('a', 2049)
-            };
-
-        var result =
-            await _validator.TestValidateAsync(
-                command);
-
-        result.ShouldHaveValidationErrorFor(
-            value => value.RedirectUri);
-    }
-
-    [Fact]
-    public async Task Validate_WhenDeviceIdHashIsTooLong_ShouldHaveError()
-    {
-        var command =
-            CreateValidCommand() with
-            {
-                DeviceIdHash =
-                    new string('a', 257)
-            };
-
-        var result =
-            await _validator.TestValidateAsync(
-                command);
-
-        result.ShouldHaveValidationErrorFor(
-            value => value.DeviceIdHash);
-    }
-
-    [Fact]
     public async Task Validate_WhenUserAgentIsTooLong_ShouldHaveError()
     {
         var command =
@@ -163,48 +110,22 @@ public sealed class CompleteExternalLoginCommandValidatorTests
             value => value.UserAgent);
     }
 
-    private static CompleteExternalLoginCommand CreateValidCommand()
-    {
-        return new CompleteExternalLoginCommand(
-            ExternalLoginProvider.Google,
-            "authorization-code",
-            "protected-state",
-            "https://localhost/signin-google",
-            "device-hash",
-            "Chrome on Windows",
-            "127.0.0.1",
-            "test-user-agent",
-            null);
-    }
-
     [Fact]
-    public void Validate_WhenDeviceIdHashIsEmpty_ShouldFail()
+    public async Task Validate_WhenIpAddressIsTooLong_ShouldHaveError()
     {
-        var validator =
-            new CompleteExternalLoginCommandValidator();
-
         var command =
-            new CompleteExternalLoginCommand(
-                ExternalLoginProvider.Google,
-                "authorization-code",
-                "protected-state",
-                "https://localhost/signin-google",
-                string.Empty,
-                "Chrome on Windows",
-                "127.0.0.1",
-                "Chrome/1.0",
-                null);
+            CreateValidCommand() with
+            {
+                IpAddress =
+                    new string('a', 65)
+            };
 
         var result =
-            validator.Validate(command);
+            await _validator.TestValidateAsync(
+                command);
 
-        Assert.False(result.IsValid);
-
-        Assert.Contains(
-            result.Errors,
-            error =>
-                error.PropertyName ==
-                nameof(CompleteExternalLoginCommand.DeviceIdHash));
+        result.ShouldHaveValidationErrorFor(
+            value => value.IpAddress);
     }
 
     [Fact]
@@ -219,6 +140,9 @@ public sealed class CompleteExternalLoginCommandValidatorTests
 
         result.ShouldNotHaveValidationErrorFor(
             value => value.AuthorizationCode);
+
+        result.ShouldNotHaveValidationErrorFor(
+            value => value.ProviderError);
     }
 
     [Fact]
@@ -258,6 +182,9 @@ public sealed class CompleteExternalLoginCommandValidatorTests
 
         result.ShouldNotHaveValidationErrorFor(
             value => value.AuthorizationCode);
+
+        result.ShouldNotHaveValidationErrorFor(
+            value => value.ProviderError);
     }
 
     [Fact]
@@ -277,11 +204,16 @@ public sealed class CompleteExternalLoginCommandValidatorTests
 
         result.ShouldHaveValidationErrorFor(
             value => value.ProviderError);
-    }}
+    }
 
-
-
-
-
-
-
+    private static CompleteExternalLoginCommand CreateValidCommand()
+    {
+        return new CompleteExternalLoginCommand(
+            ExternalLoginProvider.Google,
+            "authorization-code",
+            "protected-state",
+            "127.0.0.1",
+            "test-user-agent",
+            null);
+    }
+}

@@ -10,7 +10,6 @@ public sealed class CompleteExternalLoginCommandValidator
         RuleFor(command => command.Provider)
             .IsInEnum();
 
-
         RuleFor(command => command.AuthorizationCode)
             .MaximumLength(4096);
 
@@ -21,17 +20,6 @@ public sealed class CompleteExternalLoginCommandValidator
             .NotEmpty()
             .MaximumLength(4096);
 
-        RuleFor(command => command.RedirectUri)
-            .NotEmpty()
-            .MaximumLength(2048);
-
-        RuleFor(command => command.DeviceIdHash)
-            .NotEmpty()
-            .MaximumLength(256);
-
-        RuleFor(command => command.DeviceName)
-            .MaximumLength(256);
-
         RuleFor(command => command.IpAddress)
             .MaximumLength(64);
 
@@ -39,4 +27,3 @@ public sealed class CompleteExternalLoginCommandValidator
             .MaximumLength(1024);
     }
 }
-

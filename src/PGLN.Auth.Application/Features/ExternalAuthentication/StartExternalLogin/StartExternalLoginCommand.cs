@@ -6,6 +6,7 @@ namespace PGLN.Auth.Application.Features.ExternalAuthentication.StartExternalLog
 
 public sealed record StartExternalLoginCommand(
     ExternalLoginProvider Provider,
-    string RedirectUri)
+    string RedirectUri,
+    string DeviceIdHash,
+    string? DeviceName)
     : ICommand<Result<StartExternalLoginResult>>;
-

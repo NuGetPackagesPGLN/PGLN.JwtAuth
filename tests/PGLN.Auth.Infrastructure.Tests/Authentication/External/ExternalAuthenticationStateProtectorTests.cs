@@ -23,7 +23,9 @@ public sealed class ExternalAuthenticationStateProtectorTests
             protector.Protect(
                 "Google",
                 "https://example.com/auth/google/callback",
-                "test-code-verifier");
+                "test-code-verifier",
+                "test-device-id-hash",
+                "Chrome on Windows");
 
         var result =
             protector.Unprotect(
@@ -40,6 +42,14 @@ public sealed class ExternalAuthenticationStateProtectorTests
         Assert.Equal(
             "test-code-verifier",
             result.CodeVerifier);
+
+        Assert.Equal(
+            "test-device-id-hash",
+            result.DeviceIdHash);
+
+        Assert.Equal(
+            "Chrome on Windows",
+            result.DeviceName);
     }
 
     [Fact]
@@ -60,7 +70,9 @@ public sealed class ExternalAuthenticationStateProtectorTests
             protector.Protect(
                 "Google",
                 "https://example.com/auth/google/callback",
-                "secret-code-verifier");
+                "secret-code-verifier",
+                "secret-device-id-hash",
+                "Chrome on Windows");
 
         Assert.DoesNotContain(
             "Google",
@@ -68,6 +80,14 @@ public sealed class ExternalAuthenticationStateProtectorTests
 
         Assert.DoesNotContain(
             "secret-code-verifier",
+            protectedState);
+
+        Assert.DoesNotContain(
+            "secret-device-id-hash",
+            protectedState);
+
+        Assert.DoesNotContain(
+            "Chrome on Windows",
             protectedState);
     }
 
@@ -89,7 +109,9 @@ public sealed class ExternalAuthenticationStateProtectorTests
             protector.Protect(
                 "Google",
                 "https://example.com/auth/google/callback",
-                "test-code-verifier");
+                "test-code-verifier",
+                "test-device-id-hash",
+                "Chrome on Windows");
 
         var tamperedState =
             protectedState + "tampered";
@@ -118,7 +140,9 @@ public sealed class ExternalAuthenticationStateProtectorTests
             protector.Protect(
                 "Google",
                 "https://example.com/auth/google/callback",
-                "test-code-verifier");
+                "test-code-verifier",
+                "test-device-id-hash",
+                "Chrome on Windows");
 
         await Task.Delay(
             150);
@@ -127,5 +151,5 @@ public sealed class ExternalAuthenticationStateProtectorTests
             () =>
                 protector.Unprotect(
                     protectedState));
-    }}
-
+    }
+}

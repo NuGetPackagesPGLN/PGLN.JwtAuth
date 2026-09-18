@@ -9,7 +9,9 @@ public sealed class FakeExternalAuthenticationStateProtector
         new(
             "Google",
             "https://localhost/signin-google",
-            "test-code-verifier");
+            "test-code-verifier",
+            "test-device-id-hash",
+            "Test Device");
 
     public bool ThrowOnUnprotect { get; set; }
 
@@ -18,7 +20,9 @@ public sealed class FakeExternalAuthenticationStateProtector
     public string Protect(
         string provider,
         string redirectUri,
-        string codeVerifier)
+        string codeVerifier,
+        string deviceIdHash,
+        string? deviceName)
     {
         return "protected-state";
     }

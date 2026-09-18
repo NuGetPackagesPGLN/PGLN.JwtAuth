@@ -16,6 +16,16 @@ public sealed class StartExternalLoginCommandValidator
             .Must(BeValidAbsoluteHttpsUri)
             .WithMessage(
                 "Redirect URI must be a valid absolute HTTPS URI.");
+
+        RuleFor(command => command.DeviceIdHash)
+            .NotEmpty()
+            .MaximumLength(256);
+
+        RuleFor(command => command.DeviceName)
+            .MaximumLength(256)
+            .When(command =>
+                !string.IsNullOrWhiteSpace(
+                    command.DeviceName));
     }
 
     private static bool BeValidAbsoluteHttpsUri(

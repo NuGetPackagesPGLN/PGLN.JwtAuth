@@ -50,7 +50,9 @@ public sealed class ExternalAuthenticationStateProtector
     public string Protect(
         string provider,
         string redirectUri,
-        string codeVerifier)
+        string codeVerifier,
+        string deviceIdHash,
+        string? deviceName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(
             provider);
@@ -61,11 +63,16 @@ public sealed class ExternalAuthenticationStateProtector
         ArgumentException.ThrowIfNullOrWhiteSpace(
             codeVerifier);
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            deviceIdHash);
+
         var state =
             new ExternalAuthenticationState(
                 provider,
                 redirectUri,
-                codeVerifier);
+                codeVerifier,
+                deviceIdHash,
+                deviceName);
 
         var json =
             JsonSerializer.Serialize(
@@ -103,7 +110,9 @@ public sealed class ExternalAuthenticationStateProtector
             string.IsNullOrWhiteSpace(
                 state.RedirectUri) ||
             string.IsNullOrWhiteSpace(
-                state.CodeVerifier))
+                state.CodeVerifier) ||
+            string.IsNullOrWhiteSpace(
+                state.DeviceIdHash))
         {
             throw new InvalidOperationException(
                 "External authentication state is incomplete.");
@@ -112,5 +121,3 @@ public sealed class ExternalAuthenticationStateProtector
         return state;
     }
 }
-
-

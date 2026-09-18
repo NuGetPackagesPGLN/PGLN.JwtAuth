@@ -165,11 +165,7 @@ public sealed class CompleteExternalLoginCommandHandler
         if (!string.Equals(
                 authenticationState.Provider,
                 command.Provider.ToString(),
-                StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(
-                authenticationState.RedirectUri,
-                command.RedirectUri,
-                StringComparison.Ordinal))
+                StringComparison.OrdinalIgnoreCase))
         {
             return Result<CompleteExternalLoginResult>.Failure(
                 ExternalAuthenticationErrors.InvalidState);
@@ -220,7 +216,7 @@ public sealed class CompleteExternalLoginCommandHandler
             identity =
                 await provider.GetIdentityAsync(
                     command.AuthorizationCode,
-                    command.RedirectUri,
+                    authenticationState.RedirectUri,
                     authenticationState.CodeVerifier,
                     cancellationToken);
         }
@@ -345,7 +341,7 @@ public sealed class CompleteExternalLoginCommandHandler
             await _authSessionRepository
                 .GetActiveByDeviceIdHashAsync(
                     user.Id,
-                    command.DeviceIdHash,
+                    authenticationState.DeviceIdHash,
                     cancellationToken);
 
         if (session is null)
@@ -354,8 +350,8 @@ public sealed class CompleteExternalLoginCommandHandler
                 AuthSession.Create(
                     AuthSessionId.New(),
                     user.Id,
-                    command.DeviceIdHash,
-                    command.DeviceName,
+                    authenticationState.DeviceIdHash,
+                    authenticationState.DeviceName,
                     command.IpAddress,
                     command.UserAgent,
                     now);
@@ -416,10 +412,3 @@ public sealed class CompleteExternalLoginCommandHandler
                 isNewUser));
     }
 }
-
-
-
-
-
-
-
