@@ -48,6 +48,8 @@ public static class AuthEndpointRouteBuilderExtensions
 
         group.MapLogoutAll();
 
+        group.MapForgotPassword();
+
         group.MapResetPassword();
 
         group.MapChangePassword()
@@ -72,7 +74,4 @@ public static class AuthEndpointRouteBuilderExtensions
         return group;
     }
 }
-
-
-
 
