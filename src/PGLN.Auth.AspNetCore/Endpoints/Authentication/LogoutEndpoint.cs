@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.Logout;
 using PGLN.Auth.Contracts.Authentication;
 
@@ -23,41 +22,27 @@ internal static class LogoutEndpoint
         IRequestDispatcher dispatcher,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result =
-                await dispatcher.SendAsync(
-                    new LogoutCommand(
-                        request.RefreshToken),
-                    cancellationToken);
+        var result =
+            await dispatcher.SendAsync(
+                new LogoutCommand(
+                    request.RefreshToken),
+                cancellationToken);
 
-            if (result.IsFailure)
-            {
-                return Results.Json(
-                    new
-                    {
-                        code =
-                            result.Error.Code,
-
-                        description =
-                            result.Error.Description
-                    },
-                    statusCode:
-                        StatusCodes.Status400BadRequest);
-            }
-
-            return Results.NoContent();
-        }
-        catch (CommandValidationException exception)
+        if (result.IsFailure)
         {
             return Results.Json(
                 new
                 {
-                    errors =
-                        exception.Errors
+                    code =
+                        result.Error.Code,
+
+                    description =
+                        result.Error.Description
                 },
                 statusCode:
                     StatusCodes.Status400BadRequest);
         }
+
+        return Results.NoContent();
     }
 }

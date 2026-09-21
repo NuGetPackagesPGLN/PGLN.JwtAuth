@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -16,6 +16,7 @@ using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Features.Login;
 using PGLN.Auth.AspNetCore.Authentication;
 using PGLN.Auth.AspNetCore.Endpoints;
+using PGLN.Auth.AspNetCore.Extensions;
 using PGLN.Auth.AspNetCore.RateLimiting;
 using PGLN.Auth.EntityFrameworkCore;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
@@ -117,6 +118,8 @@ internal sealed class HttpTestApplication
         var application =
             builder.Build();
 
+        application.UsePGLNAuth();
+
         application.UseAuthentication();
         application.UseAuthorization();
         application.UseRateLimiter();
@@ -127,6 +130,14 @@ internal sealed class HttpTestApplication
             "/protected",
             () => Results.NoContent())
             .RequireAuthorization();
+
+        application.MapGet(
+            "/test/unhandled-exception",
+            () =>
+            {
+                throw new InvalidOperationException(
+                    "Test exception.");
+            });
 
         await application.StartAsync();
 
@@ -193,7 +204,3 @@ internal sealed class HttpTestApplication
         await _connection.DisposeAsync();
     }
 }
-
-
-
-

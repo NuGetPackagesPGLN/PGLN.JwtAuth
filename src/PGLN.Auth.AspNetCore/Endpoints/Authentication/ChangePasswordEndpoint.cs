@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Common;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.ChangePassword;
 using PGLN.Auth.Contracts.Authentication;
 
@@ -55,35 +54,21 @@ internal static class ChangePasswordEndpoint
                     StatusCodes.Status401Unauthorized);
         }
 
-        try
-        {
-            var result =
-                await dispatcher.SendAsync(
-                    new ChangePasswordCommand(
-                        userId,
-                        request.CurrentPassword,
-                        request.NewPassword),
-                    cancellationToken);
+        var result =
+            await dispatcher.SendAsync(
+                new ChangePasswordCommand(
+                    userId,
+                    request.CurrentPassword,
+                    request.NewPassword),
+                cancellationToken);
 
-            if (result.IsFailure)
-            {
-                return MapFailure(
-                    result.Error);
-            }
-
-            return Results.NoContent();
-        }
-        catch (CommandValidationException exception)
+        if (result.IsFailure)
         {
-            return Results.Json(
-                new
-                {
-                    errors =
-                        exception.Errors
-                },
-                statusCode:
-                    StatusCodes.Status400BadRequest);
+            return MapFailure(
+                result.Error);
         }
+
+        return Results.NoContent();
     }
 
     private static IResult MapFailure(
@@ -118,4 +103,3 @@ internal static class ChangePasswordEndpoint
                 statusCode);
     }
 }
-

@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Common;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.ChangeEmail;
 using PGLN.Auth.Contracts.ChangeEmail;
 using PGLN.Auth.Contracts.Common;
@@ -36,28 +35,19 @@ internal static class ConfirmEmailChangeEndpoint
         ArgumentNullException.ThrowIfNull(
             handler);
 
-        try
-        {
-            var result =
-                await handler.HandleAsync(
-                    new ConfirmEmailChangeCommand(
-                        request.Token),
-                    cancellationToken);
+        var result =
+            await handler.HandleAsync(
+                new ConfirmEmailChangeCommand(
+                    request.Token),
+                cancellationToken);
 
-            if (result.IsFailure)
-            {
-                return MapFailure(
-                    result.Error);
-            }
-
-            return Results.NoContent();
-        }
-        catch (CommandValidationException exception)
+        if (result.IsFailure)
         {
-            return Results.BadRequest(
-                CreateValidationResponse(
-                    exception));
+            return MapFailure(
+                result.Error);
         }
+
+        return Results.NoContent();
     }
 
     private static IResult MapFailure(
@@ -96,29 +86,5 @@ internal static class ConfirmEmailChangeEndpoint
             new ApiErrorResponse(
                 error.Code,
                 error.Description));
-    }
-
-    private static ValidationErrorResponse CreateValidationResponse(
-        CommandValidationException exception)
-    {
-        var errors =
-            exception.Errors
-                .GroupBy(
-                    error =>
-                        error.PropertyName)
-                .ToDictionary(
-                    group =>
-                        group.Key,
-                    group =>
-                        group
-                            .Select(
-                                error =>
-                                    error.ErrorMessage)
-                            .ToArray());
-
-        return new ValidationErrorResponse(
-            "Validation.Failed",
-            "One or more validation errors occurred.",
-            errors);
     }
 }

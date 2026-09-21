@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.ForgotPassword;
 using PGLN.Auth.Contracts.Authentication;
 
@@ -29,25 +28,11 @@ internal static class ForgotPasswordEndpoint
         ArgumentNullException.ThrowIfNull(
             request);
 
-        try
-        {
-            await dispatcher.SendAsync(
-                new ForgotPasswordCommand(
-                    request.Email),
-                cancellationToken);
+        await dispatcher.SendAsync(
+            new ForgotPasswordCommand(
+                request.Email),
+            cancellationToken);
 
-            return Results.NoContent();
-        }
-        catch (CommandValidationException exception)
-        {
-            return Results.Json(
-                new
-                {
-                    errors =
-                        exception.Errors
-                },
-                statusCode:
-                    StatusCodes.Status400BadRequest);
-        }
+        return Results.NoContent();
     }
 }

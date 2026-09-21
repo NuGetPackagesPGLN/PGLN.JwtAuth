@@ -126,6 +126,40 @@ public sealed class LoginEndpointHttpTests
     }
 
     [Fact]
+    public async Task Login_WithInvalidRequest_ShouldReturn400ValidationResponse()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        using var client =
+            application.CreateClient();
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(
+                    "user@example.com",
+                    "SecretPassword123!",
+                    string.Empty,
+                    "Integration Test Device"));
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var payload =
+            await response.Content
+                .ReadAsStringAsync();
+
+        Assert.Contains(
+            "Validation.Failed",
+            payload);
+
+        Assert.Contains(
+            "DeviceIdHash",
+            payload);
+    }
+    [Fact]
     public async Task Login_WithWrongPassword_ShouldReturn401()
     {
         await using var application =

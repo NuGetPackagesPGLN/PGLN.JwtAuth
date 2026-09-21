@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.LogoutAll;
 using PGLN.Auth.Contracts.Authentication;
 
@@ -23,57 +22,43 @@ internal static class LogoutAllEndpoint
         IRequestDispatcher dispatcher,
         CancellationToken cancellationToken)
     {
-        try
+        var result =
+            await dispatcher.SendAsync(
+                new LogoutAllCommand(
+                    request.RefreshToken),
+                cancellationToken);
+
+        if (result.IsFailure)
         {
-            var result =
-                await dispatcher.SendAsync(
-                    new LogoutAllCommand(
-                        request.RefreshToken),
-                    cancellationToken);
+            var statusCode =
+                result.Error.Code switch
+                {
+                    "LogoutAll.InvalidToken" =>
+                        StatusCodes.Status401Unauthorized,
 
-            if (result.IsFailure)
-            {
-                var statusCode =
-                    result.Error.Code switch
-                    {
-                        "LogoutAll.InvalidToken" =>
-                            StatusCodes.Status401Unauthorized,
+                    "LogoutAll.ExpiredToken" =>
+                        StatusCodes.Status401Unauthorized,
 
-                        "LogoutAll.ExpiredToken" =>
-                            StatusCodes.Status401Unauthorized,
+                    "LogoutAll.RevokedToken" =>
+                        StatusCodes.Status401Unauthorized,
 
-                        "LogoutAll.RevokedToken" =>
-                            StatusCodes.Status401Unauthorized,
+                    _ =>
+                        StatusCodes.Status400BadRequest
+                };
 
-                        _ =>
-                            StatusCodes.Status400BadRequest
-                    };
-
-                return Results.Json(
-                    new
-                    {
-                        code =
-                            result.Error.Code,
-
-                        description =
-                            result.Error.Description
-                    },
-                    statusCode:
-                        statusCode);
-            }
-
-            return Results.NoContent();
-        }
-        catch (CommandValidationException exception)
-        {
             return Results.Json(
                 new
                 {
-                    errors =
-                        exception.Errors
+                    code =
+                        result.Error.Code,
+
+                    description =
+                        result.Error.Description
                 },
                 statusCode:
-                    StatusCodes.Status400BadRequest);
+                    statusCode);
         }
+
+        return Results.NoContent();
     }
 }

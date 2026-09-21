@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Common;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.Registration;
 using PGLN.Auth.Contracts.Common;
 using PGLN.Auth.Contracts.Registration;
@@ -36,37 +35,28 @@ internal static class RegisterEndpoint
         ArgumentNullException.ThrowIfNull(
             handler);
 
-        try
+        var result =
+            await handler.HandleAsync(
+                new RegisterCommand(
+                    request.Email,
+                    request.Password),
+                cancellationToken);
+
+        if (result.IsFailure)
         {
-            var result =
-                await handler.HandleAsync(
-                    new RegisterCommand(
-                        request.Email,
-                        request.Password),
-                    cancellationToken);
-
-            if (result.IsFailure)
-            {
-                return MapFailure(
-                    result.Error);
-            }
-
-            var response =
-                new RegisterResponse(
-                    result.Value.UserId.Value,
-                    result.Value.Email,
-                    result.Value.EmailConfirmed);
-
-            return Results.Created(
-                $"/api/auth/users/{response.UserId}",
-                response);
+            return MapFailure(
+                result.Error);
         }
-        catch (CommandValidationException exception)
-        {
-            return Results.BadRequest(
-                CreateValidationResponse(
-                    exception));
-        }
+
+        var response =
+            new RegisterResponse(
+                result.Value.UserId.Value,
+                result.Value.Email,
+                result.Value.EmailConfirmed);
+
+        return Results.Created(
+            $"/api/auth/users/{response.UserId}",
+            response);
     }
 
     private static IResult MapFailure(
@@ -85,29 +75,5 @@ internal static class RegisterEndpoint
             new ApiErrorResponse(
                 error.Code,
                 error.Description));
-    }
-
-    private static ValidationErrorResponse CreateValidationResponse(
-        CommandValidationException exception)
-    {
-        var errors =
-            exception.Errors
-                .GroupBy(
-                    error =>
-                        error.PropertyName)
-                .ToDictionary(
-                    group =>
-                        group.Key,
-                    group =>
-                        group
-                            .Select(
-                                error =>
-                                    error.ErrorMessage)
-                            .ToArray());
-
-        return new ValidationErrorResponse(
-            "Validation.Failed",
-            "One or more validation errors occurred.",
-            errors);
     }
 }

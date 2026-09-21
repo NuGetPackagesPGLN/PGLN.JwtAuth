@@ -1,9 +1,8 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Common;
-using PGLN.Auth.Application.Common.Validation;
 using PGLN.Auth.Application.Features.ResetPassword;
 using PGLN.Auth.Contracts.Authentication;
 
@@ -30,35 +29,21 @@ internal static class ResetPasswordEndpoint
         ArgumentNullException.ThrowIfNull(
             request);
 
-        try
-        {
-            var result =
-                await dispatcher.SendAsync(
-                    new ResetPasswordCommand(
-                        request.Email,
-                        request.Token,
-                        request.NewPassword),
-                    cancellationToken);
+        var result =
+            await dispatcher.SendAsync(
+                new ResetPasswordCommand(
+                    request.Email,
+                    request.Token,
+                    request.NewPassword),
+                cancellationToken);
 
-            if (result.IsFailure)
-            {
-                return MapFailure(
-                    result.Error);
-            }
-
-            return Results.NoContent();
-        }
-        catch (CommandValidationException exception)
+        if (result.IsFailure)
         {
-            return Results.Json(
-                new
-                {
-                    errors =
-                        exception.Errors
-                },
-                statusCode:
-                    StatusCodes.Status400BadRequest);
+            return MapFailure(
+                result.Error);
         }
+
+        return Results.NoContent();
     }
 
     private static IResult MapFailure(
