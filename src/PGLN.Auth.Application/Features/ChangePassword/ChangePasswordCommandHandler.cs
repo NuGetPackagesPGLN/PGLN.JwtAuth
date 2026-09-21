@@ -1,4 +1,4 @@
-using PGLN.Auth.Application.Abstractions.Authentication;
+﻿using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
@@ -17,11 +17,17 @@ public sealed class ChangePasswordCommandHandler
     private const string RefreshTokenRevocationReason =
         "PasswordChanged";
 
+    private const string SessionRevocationReason =
+        "Password changed.";
+
     private readonly IUserRepository
         _userRepository;
 
     private readonly IRefreshTokenRepository
         _refreshTokenRepository;
+
+    private readonly IAuthSessionRepository
+        _authSessionRepository;
 
     private readonly IPasswordHasher
         _passwordHasher;
@@ -38,6 +44,7 @@ public sealed class ChangePasswordCommandHandler
     public ChangePasswordCommandHandler(
         IUserRepository userRepository,
         IRefreshTokenRepository refreshTokenRepository,
+        IAuthSessionRepository authSessionRepository,
         IPasswordHasher passwordHasher,
         IIntegrationEventPublisher integrationEventPublisher,
         IUnitOfWork unitOfWork,
@@ -48,6 +55,9 @@ public sealed class ChangePasswordCommandHandler
 
         ArgumentNullException.ThrowIfNull(
             refreshTokenRepository);
+
+        ArgumentNullException.ThrowIfNull(
+            authSessionRepository);
 
         ArgumentNullException.ThrowIfNull(
             passwordHasher);
@@ -66,6 +76,9 @@ public sealed class ChangePasswordCommandHandler
 
         _refreshTokenRepository =
             refreshTokenRepository;
+
+        _authSessionRepository =
+            authSessionRepository;
 
         _passwordHasher =
             passwordHasher;
@@ -153,6 +166,24 @@ public sealed class ChangePasswordCommandHandler
                 RefreshTokenRevocationReason);
         }
 
+        var sessions =
+            await _authSessionRepository
+                .GetByUserIdAsync(
+                    user.Id,
+                    cancellationToken);
+
+        foreach (var session in sessions)
+        {
+            if (!session.IsActive)
+            {
+                continue;
+            }
+
+            session.Revoke(
+                now,
+                SessionRevocationReason);
+        }
+
         var notificationRequested =
             new PasswordChangedNotificationRequested(
                 Guid.NewGuid(),
@@ -172,4 +203,5 @@ public sealed class ChangePasswordCommandHandler
         return Result.Success();
     }
 }
+
 

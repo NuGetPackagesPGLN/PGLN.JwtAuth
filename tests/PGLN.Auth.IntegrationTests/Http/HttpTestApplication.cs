@@ -1,3 +1,4 @@
+﻿using Microsoft.AspNetCore.Http;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -122,6 +123,11 @@ internal sealed class HttpTestApplication
 
         application.MapPGLNAuthEndpoints();
 
+        application.MapGet(
+            "/protected",
+            () => Results.NoContent())
+            .RequireAuthorization();
+
         await application.StartAsync();
 
         await using (
@@ -187,5 +193,7 @@ internal sealed class HttpTestApplication
         await _connection.DisposeAsync();
     }
 }
+
+
 
 

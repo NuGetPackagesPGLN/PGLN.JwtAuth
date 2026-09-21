@@ -1,4 +1,4 @@
-using PGLN.Auth.Application.Events.Email;
+﻿using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Application.Features.ChangePassword;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.RefreshTokens;
@@ -250,6 +250,139 @@ public sealed class ChangePasswordCommandHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithValidRequest_ShouldRevokeActiveAuthSessions()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var firstSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-001",
+                "Chrome",
+                "192.168.1.10",
+                "Mozilla/5.0",
+                Now.AddDays(-2));
+
+        var secondSession =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-002",
+                "Edge",
+                "192.168.1.20",
+                "Mozilla/5.0",
+                Now.AddDays(-1));
+
+        sessions.Seed(
+            firstSession);
+
+        sessions.Seed(
+            secondSession);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    sessions:
+                        sessions)
+                .HandleAsync(
+                    CreateCommand(
+                        user.Id));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.True(
+            firstSession.IsRevoked);
+
+        Assert.Equal(
+            Now,
+            firstSession.RevokedAtUtc);
+
+        Assert.Equal(
+            "Password changed.",
+            firstSession.RevocationReason);
+
+        Assert.True(
+            secondSession.IsRevoked);
+
+        Assert.Equal(
+            Now,
+            secondSession.RevokedAtUtc);
+
+        Assert.Equal(
+            "Password changed.",
+            secondSession.RevocationReason);
+    }
+    [Fact]
+    public async Task HandleAsync_WithValidRequest_ShouldNotModifyAlreadyRevokedAuthSession()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var sessions =
+            new FakeAuthSessionRepository();
+
+        var revokedAt =
+            Now.AddHours(-4);
+
+        var session =
+            AuthSession.Create(
+                AuthSessionId.New(),
+                user.Id,
+                "device-001",
+                "Chrome",
+                "192.168.1.10",
+                "Mozilla/5.0",
+                Now.AddDays(-1));
+
+        session.Revoke(
+            revokedAt,
+            "User logged out.");
+
+        sessions.Seed(
+            session);
+
+        var result =
+            await CreateHandler(
+                    users,
+                    sessions:
+                        sessions)
+                .HandleAsync(
+                    CreateCommand(
+                        user.Id));
+
+        Assert.True(
+            result.IsSuccess);
+
+        Assert.True(
+            session.IsRevoked);
+
+        Assert.Equal(
+            revokedAt,
+            session.RevokedAtUtc);
+
+        Assert.Equal(
+            "User logged out.",
+            session.RevocationReason);
+    }
+    [Fact]
     public async Task HandleAsync_WithValidRequest_ShouldSaveExactlyOnce()
     {
         var user =
@@ -332,12 +465,16 @@ public sealed class ChangePasswordCommandHandlerTests
     private static ChangePasswordCommandHandler CreateHandler(
         FakeUserRepository users,
         FakeRefreshTokenRepository? refreshTokens = null,
+        FakeAuthSessionRepository? sessions = null,
         FakePasswordHasher? passwordHasher = null,
         FakeIntegrationEventPublisher? integrationEventPublisher = null,
         FakeUnitOfWork? unitOfWork = null)
     {
         refreshTokens ??=
             new FakeRefreshTokenRepository();
+
+        sessions ??=
+            new FakeAuthSessionRepository();
 
         passwordHasher ??=
             CreatePasswordHasher();
@@ -351,6 +488,7 @@ public sealed class ChangePasswordCommandHandlerTests
         return new ChangePasswordCommandHandler(
             users,
             refreshTokens,
+            sessions,
             passwordHasher,
             integrationEventPublisher,
             unitOfWork,
@@ -406,6 +544,9 @@ public sealed class ChangePasswordCommandHandlerTests
             Now.AddDays(7));
     }
 }
+
+
+
 
 
 

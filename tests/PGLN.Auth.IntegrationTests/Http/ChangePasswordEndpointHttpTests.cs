@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
@@ -219,6 +219,63 @@ public sealed class ChangePasswordEndpointHttpTests
     }
 
     [Fact]
+    public async Task ChangePassword_ShouldInvalidateExistingAccessAndRefreshTokens()
+    {
+        await using var application =
+            await HttpTestApplication.CreateAsync();
+
+        await HttpAuthenticationHelper.SeedConfirmedUserAsync(
+            application,
+            EmailAddress,
+            CurrentPassword);
+
+        using var client =
+            application.CreateClient();
+
+        var login =
+            await HttpAuthenticationHelper.LoginExistingUserAsync(
+                client,
+                EmailAddress,
+                CurrentPassword);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                login.AccessToken);
+
+        var changePasswordResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/change-password",
+                new ChangePasswordRequest(
+                    CurrentPassword,
+                    NewPassword));
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            changePasswordResponse.StatusCode);
+
+        var protectedResponse =
+            await client.GetAsync(
+                "/protected");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            protectedResponse.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization =
+            null;
+
+        var refreshResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/refresh",
+                new RefreshTokenRequest(
+                    login.RefreshToken!));
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            refreshResponse.StatusCode);
+    }
+    [Fact]
     public async Task ChangePassword_ShouldRevokeActiveRefreshTokens()
     {
         await using var application =
@@ -286,6 +343,7 @@ public sealed class ChangePasswordEndpointHttpTests
     }
 
 }
+
 
 
 
