@@ -25,6 +25,8 @@
     <RepositoryUrl>https://github.com/NuGetPackagesPGLN/PGLN.JwtAuth</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
 
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
@@ -77,6 +79,8 @@
     <None Include="..\PGLN.Auth.EntityFrameworkCore.PostgreSql\bin\$(Configuration)\net10.0\PGLN.Auth.EntityFrameworkCore.PostgreSql.dll" Pack="true" PackagePath="lib\net10.0" />
 
     <None Include="..\PGLN.Auth.Infrastructure\bin\$(Configuration)\net10.0\PGLN.Auth.Infrastructure.dll" Pack="true" PackagePath="lib\net10.0" />
+
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
