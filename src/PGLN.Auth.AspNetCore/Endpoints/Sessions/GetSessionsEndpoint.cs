@@ -8,7 +8,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Sessions;
 
-public static class GetSessionsEndpoint
+internal static class GetSessionsEndpoint
 {
     public static IEndpointRouteBuilder MapGetSessionsEndpoint(
         this IEndpointRouteBuilder endpoints)

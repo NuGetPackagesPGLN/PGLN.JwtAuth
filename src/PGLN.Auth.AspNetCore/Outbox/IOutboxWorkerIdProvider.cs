@@ -1,6 +1,6 @@
 namespace PGLN.Auth.AspNetCore.Outbox;
 
-public interface IOutboxWorkerIdProvider
+internal interface IOutboxWorkerIdProvider
 {
     string WorkerId { get; }
 }

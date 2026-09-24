@@ -9,7 +9,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Sessions;
 
-public static class RevokeSessionEndpoint
+internal static class RevokeSessionEndpoint
 {
     public static IEndpointRouteBuilder MapRevokeSessionEndpoint(
         this IEndpointRouteBuilder endpoints)

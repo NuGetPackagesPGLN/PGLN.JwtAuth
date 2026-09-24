@@ -20,4 +20,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PGLN.Auth.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>

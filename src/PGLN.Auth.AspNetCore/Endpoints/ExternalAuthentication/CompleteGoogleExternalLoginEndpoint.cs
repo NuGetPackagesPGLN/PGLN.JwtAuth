@@ -8,7 +8,7 @@ using PGLN.Auth.Domain.ExternalLogins;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.ExternalAuthentication;
 
-public static class CompleteGoogleExternalLoginEndpoint
+internal static class CompleteGoogleExternalLoginEndpoint
 {
     public static RouteHandlerBuilder MapCompleteGoogleExternalLoginEndpoint(
         this IEndpointRouteBuilder endpoints)

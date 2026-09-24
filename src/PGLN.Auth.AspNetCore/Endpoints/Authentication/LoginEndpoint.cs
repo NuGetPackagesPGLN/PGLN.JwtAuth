@@ -8,7 +8,7 @@ using PGLN.Auth.Contracts.Authentication;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Authentication;
 
-public static class LoginEndpoint
+internal static class LoginEndpoint
 {
     public static RouteHandlerBuilder MapLoginEndpoint(
         this IEndpointRouteBuilder endpoints)

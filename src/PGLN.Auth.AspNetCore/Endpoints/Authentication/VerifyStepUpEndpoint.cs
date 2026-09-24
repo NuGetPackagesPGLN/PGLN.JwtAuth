@@ -8,7 +8,7 @@ using PGLN.Auth.Contracts.Authentication;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Authentication;
 
-public static class VerifyStepUpEndpoint
+internal static class VerifyStepUpEndpoint
 {
     public static RouteHandlerBuilder MapVerifyStepUpEndpoint(
         this IEndpointRouteBuilder endpoints)

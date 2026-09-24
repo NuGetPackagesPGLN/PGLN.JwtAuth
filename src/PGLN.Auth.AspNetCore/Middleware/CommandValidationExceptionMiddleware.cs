@@ -4,7 +4,7 @@ using PGLN.Auth.Contracts.Common;
 
 namespace PGLN.Auth.AspNetCore.Middleware;
 
-public sealed class CommandValidationExceptionMiddleware
+internal sealed class CommandValidationExceptionMiddleware
 {
     private readonly RequestDelegate _next;
 

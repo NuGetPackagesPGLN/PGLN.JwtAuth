@@ -7,7 +7,7 @@ using PGLN.Auth.Contracts.Authentication;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.Authentication;
 
-public static class RefreshTokenEndpoint
+internal static class RefreshTokenEndpoint
 {
     public static RouteHandlerBuilder MapRefreshTokenEndpoint(
         this IEndpointRouteBuilder endpoints)

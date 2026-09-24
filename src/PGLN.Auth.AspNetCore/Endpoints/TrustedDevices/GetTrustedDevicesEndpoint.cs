@@ -8,7 +8,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.TrustedDevices;
 
-public static class GetTrustedDevicesEndpoint
+internal static class GetTrustedDevicesEndpoint
 {
     public static IEndpointRouteBuilder MapGetTrustedDevicesEndpoint(
         this IEndpointRouteBuilder endpoints)

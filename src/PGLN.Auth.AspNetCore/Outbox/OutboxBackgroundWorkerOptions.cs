@@ -2,12 +2,12 @@ namespace PGLN.Auth.AspNetCore.Outbox;
 
 public sealed class OutboxBackgroundWorkerOptions
 {
-    public bool Enabled { get; init; } = true;
+    public bool Enabled { get; set; } = true;
 
-    public TimeSpan PollInterval { get; init; } =
+    public TimeSpan PollInterval { get; set; } =
         TimeSpan.FromSeconds(5);
 
-    public string WorkerIdPrefix { get; init; } =
+    public string WorkerIdPrefix { get; set; } =
         "aspnet";
 
     public void Validate()

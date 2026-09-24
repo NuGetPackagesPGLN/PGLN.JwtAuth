@@ -1,6 +1,6 @@
 namespace PGLN.Auth.AspNetCore.Outbox;
 
-public sealed class OutboxWorkerIdProvider
+internal sealed class OutboxWorkerIdProvider
     : IOutboxWorkerIdProvider
 {
     public OutboxWorkerIdProvider(

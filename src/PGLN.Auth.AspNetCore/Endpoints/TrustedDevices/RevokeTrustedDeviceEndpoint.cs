@@ -9,7 +9,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.AspNetCore.Endpoints.TrustedDevices;
 
-public static class RevokeTrustedDeviceEndpoint
+internal static class RevokeTrustedDeviceEndpoint
 {
     public static IEndpointRouteBuilder MapRevokeTrustedDeviceEndpoint(
         this IEndpointRouteBuilder endpoints)

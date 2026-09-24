@@ -5,7 +5,7 @@ using PGLN.Auth.EntityFrameworkCore.Outbox;
 
 namespace PGLN.Auth.AspNetCore.Outbox;
 
-public sealed class OutboxBackgroundService
+internal sealed class OutboxBackgroundService
     : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
