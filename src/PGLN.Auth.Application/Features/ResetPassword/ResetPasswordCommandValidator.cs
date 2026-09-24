@@ -1,9 +1,9 @@
-﻿using FluentValidation;
+using FluentValidation;
 using PGLN.Auth.Application.Abstractions.Authentication;
 
 namespace PGLN.Auth.Application.Features.ResetPassword;
 
-public sealed class ResetPasswordCommandValidator
+internal sealed class ResetPasswordCommandValidator
     : AbstractValidator<ResetPasswordCommand>
 {
     public ResetPasswordCommandValidator(

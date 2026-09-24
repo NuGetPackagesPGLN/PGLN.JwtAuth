@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\PGLN.Auth.Domain\PGLN.Auth.Domain.csproj" />
@@ -9,6 +9,10 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Scrutor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PGLN.Auth.Application.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

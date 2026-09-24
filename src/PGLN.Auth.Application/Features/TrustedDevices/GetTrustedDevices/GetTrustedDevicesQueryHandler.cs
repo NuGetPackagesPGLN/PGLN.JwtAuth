@@ -3,7 +3,7 @@ using PGLN.Auth.Application.Abstractions.Persistence;
 
 namespace PGLN.Auth.Application.Features.TrustedDevices.GetTrustedDevices;
 
-public sealed class GetTrustedDevicesQueryHandler
+internal sealed class GetTrustedDevicesQueryHandler
     : IQueryHandler<
         GetTrustedDevicesQuery,
         IReadOnlyCollection<TrustedDeviceResponse>>

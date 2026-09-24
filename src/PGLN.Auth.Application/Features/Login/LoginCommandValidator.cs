@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.Login;
 
-public sealed class LoginCommandValidator
+internal sealed class LoginCommandValidator
     : AbstractValidator<LoginCommand>
 {
     public LoginCommandValidator()

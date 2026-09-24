@@ -1,8 +1,8 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.TokenRefresh;
 
-public sealed class TokenRefreshCommandValidator
+internal sealed class TokenRefreshCommandValidator
     : AbstractValidator<TokenRefreshCommand>
 {
     public TokenRefreshCommandValidator()

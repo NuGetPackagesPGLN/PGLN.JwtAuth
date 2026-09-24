@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
@@ -11,7 +11,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.ForgotPassword;
 
-public sealed class ForgotPasswordCommandHandler
+internal sealed class ForgotPasswordCommandHandler
     : ICommandHandler<
         ForgotPasswordCommand,
         Result>

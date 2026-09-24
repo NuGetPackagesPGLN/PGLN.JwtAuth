@@ -6,7 +6,7 @@ using PGLN.Auth.Domain.TrustedDevices;
 
 namespace PGLN.Auth.Application.Features.Sessions.TrustDevice;
 
-public sealed class TrustDeviceCommandHandler
+internal sealed class TrustDeviceCommandHandler
     : ICommandHandler<TrustDeviceCommand, Result>
 {
     private static readonly Error SessionNotFoundError =

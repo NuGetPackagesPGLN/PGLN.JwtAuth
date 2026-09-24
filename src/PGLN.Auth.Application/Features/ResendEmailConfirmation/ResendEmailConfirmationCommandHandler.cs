@@ -1,4 +1,4 @@
-﻿using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Authentication;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
@@ -10,7 +10,7 @@ using PGLN.Auth.Domain.VerificationTokens;
 
 namespace PGLN.Auth.Application.Features.ResendEmailConfirmation;
 
-public sealed class ResendEmailConfirmationCommandHandler
+internal sealed class ResendEmailConfirmationCommandHandler
     : ICommandHandler<
         ResendEmailConfirmationCommand,
         Result>

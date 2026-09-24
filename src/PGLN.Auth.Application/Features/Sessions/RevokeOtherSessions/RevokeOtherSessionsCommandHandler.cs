@@ -5,7 +5,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.Sessions.RevokeOtherSessions;
 
-public sealed class RevokeOtherSessionsCommandHandler
+internal sealed class RevokeOtherSessionsCommandHandler
     : ICommandHandler<RevokeOtherSessionsCommand, Result>
 {
     private static readonly Error CurrentSessionNotFoundError =

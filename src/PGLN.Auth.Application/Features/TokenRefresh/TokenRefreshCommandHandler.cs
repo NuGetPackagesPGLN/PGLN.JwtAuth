@@ -7,7 +7,7 @@ using PGLN.Auth.Domain.RefreshTokens;
 
 namespace PGLN.Auth.Application.Features.TokenRefresh;
 
-public sealed class TokenRefreshCommandHandler
+internal sealed class TokenRefreshCommandHandler
     : ICommandHandler<
         TokenRefreshCommand,
         Result<TokenRefreshResult>>

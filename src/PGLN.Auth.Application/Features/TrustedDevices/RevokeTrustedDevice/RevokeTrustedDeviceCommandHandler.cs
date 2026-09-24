@@ -5,7 +5,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.TrustedDevices.RevokeTrustedDevice;
 
-public sealed class RevokeTrustedDeviceCommandHandler
+internal sealed class RevokeTrustedDeviceCommandHandler
     : ICommandHandler<RevokeTrustedDeviceCommand, Result>
 {
     private static readonly Error TrustedDeviceNotFoundError =

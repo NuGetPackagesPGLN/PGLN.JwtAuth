@@ -4,7 +4,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.Sessions.GetSessions;
 
-public sealed class GetSessionsQueryHandler
+internal sealed class GetSessionsQueryHandler
     : ICommandHandler<GetSessionsQuery, Result<IReadOnlyCollection<SessionItem>>>
 {
     private readonly IAuthSessionRepository _authSessionRepository;

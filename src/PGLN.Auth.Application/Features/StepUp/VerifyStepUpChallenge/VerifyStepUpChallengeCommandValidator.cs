@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.StepUp.VerifyStepUpChallenge;
 
-public sealed class VerifyStepUpChallengeCommandValidator
+internal sealed class VerifyStepUpChallengeCommandValidator
     : AbstractValidator<VerifyStepUpChallengeCommand>
 {
     public VerifyStepUpChallengeCommandValidator()

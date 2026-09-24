@@ -12,7 +12,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.ExternalAuthentication.CompleteExternalLogin;
 
-public sealed class CompleteExternalLoginCommandHandler
+internal sealed class CompleteExternalLoginCommandHandler
     : ICommandHandler<
         CompleteExternalLoginCommand,
         Result<CompleteExternalLoginResult>>

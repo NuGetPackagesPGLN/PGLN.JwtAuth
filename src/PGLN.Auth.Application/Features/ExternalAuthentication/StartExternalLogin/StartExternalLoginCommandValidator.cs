@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.ExternalAuthentication.StartExternalLogin;
 
-public sealed class StartExternalLoginCommandValidator
+internal sealed class StartExternalLoginCommandValidator
     : AbstractValidator<StartExternalLoginCommand>
 {
     public StartExternalLoginCommandValidator()

@@ -15,7 +15,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.Login;
 
-public sealed class LoginCommandHandler
+internal sealed class LoginCommandHandler
     : ICommandHandler<
         LoginCommand,
         Result<LoginResult>>

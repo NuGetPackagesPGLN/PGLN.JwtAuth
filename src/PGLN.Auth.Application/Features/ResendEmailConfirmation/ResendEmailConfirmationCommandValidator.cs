@@ -1,8 +1,8 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.ResendEmailConfirmation;
 
-public sealed class ResendEmailConfirmationCommandValidator
+internal sealed class ResendEmailConfirmationCommandValidator
     : AbstractValidator<ResendEmailConfirmationCommand>
 {
     public ResendEmailConfirmationCommandValidator()

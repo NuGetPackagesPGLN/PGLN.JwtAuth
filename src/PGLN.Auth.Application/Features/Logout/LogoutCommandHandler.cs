@@ -6,7 +6,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.Logout;
 
-public sealed class LogoutCommandHandler
+internal sealed class LogoutCommandHandler
     : ICommandHandler<
         LogoutCommand,
         Result>

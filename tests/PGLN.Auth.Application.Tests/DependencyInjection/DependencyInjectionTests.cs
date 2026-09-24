@@ -6,7 +6,9 @@ using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
 using PGLN.Auth.Application.Configuration;
+using PGLN.Auth.Application.Features.Login;
 using PGLN.Auth.Application.Features.Registration;
+using PGLN.Auth.Application.Messaging;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Domain.VerificationTokens;
 
@@ -223,6 +225,30 @@ public sealed class DependencyInjectionTests
         Assert.Equal(
             "Step-up maximum failed attempts must be greater than zero.",
             exception.Message);
+    }
+    [Fact]
+    public void AddPGLNAuthApplication_ShouldRegisterInternalLoginCommandHandler()
+    {
+        var services =
+            new ServiceCollection();
+
+        services.AddPGLNAuthApplication();
+
+        var serviceType =
+            typeof(
+                ICommandHandler<
+                    LoginCommand,
+                    Result<LoginResult>>);
+
+        var descriptors =
+            services
+                .Where(
+                    descriptor =>
+                        descriptor.ServiceType ==
+                        serviceType)
+                .ToArray();
+
+        Assert.NotEmpty(descriptors);
     }
     private static void AddRegistrationDependencies(
         IServiceCollection services)

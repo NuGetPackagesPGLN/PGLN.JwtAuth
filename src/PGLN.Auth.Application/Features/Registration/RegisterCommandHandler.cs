@@ -10,7 +10,7 @@ using PGLN.Auth.Domain.VerificationTokens;
 
 namespace PGLN.Auth.Application.Features.Registration;
 
-public sealed class RegisterCommandHandler
+internal sealed class RegisterCommandHandler
     : ICommandHandler<
         RegisterCommand,
         Result<RegisterResult>>

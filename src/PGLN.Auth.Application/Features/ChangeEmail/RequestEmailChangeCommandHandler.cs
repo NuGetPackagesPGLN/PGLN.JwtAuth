@@ -10,7 +10,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.ChangeEmail;
 
-public sealed class RequestEmailChangeCommandHandler
+internal sealed class RequestEmailChangeCommandHandler
     : ICommandHandler<
         RequestEmailChangeCommand,
         Result>

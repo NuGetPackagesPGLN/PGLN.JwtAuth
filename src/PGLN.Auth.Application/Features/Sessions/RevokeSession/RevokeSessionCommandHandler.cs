@@ -5,7 +5,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.Sessions.RevokeSession;
 
-public sealed class RevokeSessionCommandHandler
+internal sealed class RevokeSessionCommandHandler
     : ICommandHandler<RevokeSessionCommand, Result>
 {
     private static readonly Error SessionNotFoundError =

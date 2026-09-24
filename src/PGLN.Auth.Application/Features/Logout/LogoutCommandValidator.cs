@@ -1,8 +1,8 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.Logout;
 
-public sealed class LogoutCommandValidator
+internal sealed class LogoutCommandValidator
     : AbstractValidator<LogoutCommand>
 {
     public LogoutCommandValidator()

@@ -3,7 +3,7 @@ using PGLN.Auth.Application.Abstractions.Authentication;
 
 namespace PGLN.Auth.Application.Features.Registration;
 
-public sealed class RegisterCommandValidator
+internal sealed class RegisterCommandValidator
     : AbstractValidator<RegisterCommand>
 {
     public RegisterCommandValidator(

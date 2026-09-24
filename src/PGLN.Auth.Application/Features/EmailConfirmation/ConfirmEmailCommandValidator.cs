@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.EmailConfirmation;
 
-public sealed class ConfirmEmailCommandValidator
+internal sealed class ConfirmEmailCommandValidator
     : AbstractValidator<ConfirmEmailCommand>
 {
     public ConfirmEmailCommandValidator()

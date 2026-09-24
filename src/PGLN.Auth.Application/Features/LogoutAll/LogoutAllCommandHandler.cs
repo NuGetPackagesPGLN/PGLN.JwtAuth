@@ -6,7 +6,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.LogoutAll;
 
-public sealed class LogoutAllCommandHandler
+internal sealed class LogoutAllCommandHandler
     : ICommandHandler<LogoutAllCommand, Result>
 {
     private const string RevocationReason =

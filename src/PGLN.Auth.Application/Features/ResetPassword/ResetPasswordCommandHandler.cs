@@ -7,7 +7,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.ResetPassword;
 
-public sealed class ResetPasswordCommandHandler
+internal sealed class ResetPasswordCommandHandler
     : ICommandHandler<
         ResetPasswordCommand,
         Result>

@@ -9,7 +9,7 @@ using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.ChangeEmail;
 
-public sealed class ConfirmEmailChangeCommandHandler
+internal sealed class ConfirmEmailChangeCommandHandler
     : ICommandHandler<
         ConfirmEmailChangeCommand,
         Result>

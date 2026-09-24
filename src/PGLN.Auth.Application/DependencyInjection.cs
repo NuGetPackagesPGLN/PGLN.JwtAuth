@@ -95,13 +95,15 @@ public static class DependencyInjection
                     .AddClasses(
                         classes =>
                             classes.AssignableTo(
-                                typeof(ICommandHandler<,>)))
+                                typeof(ICommandHandler<,>)),
+                        publicOnly: false)
                     .AsImplementedInterfaces()
                     .WithTransientLifetime()
                     .AddClasses(
                         classes =>
                             classes.AssignableTo(
-                                typeof(IQueryHandler<,>)))
+                                typeof(IQueryHandler<,>)),
+                        publicOnly: false)
                     .AsImplementedInterfaces()
                     .WithTransientLifetime()
                     .AddClasses(

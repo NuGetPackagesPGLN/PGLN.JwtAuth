@@ -3,7 +3,7 @@ using PGLN.Auth.Application.Abstractions.Authentication;
 
 namespace PGLN.Auth.Application.Features.ChangePassword;
 
-public sealed class ChangePasswordCommandValidator
+internal sealed class ChangePasswordCommandValidator
     : AbstractValidator<ChangePasswordCommand>
 {
     public ChangePasswordCommandValidator(

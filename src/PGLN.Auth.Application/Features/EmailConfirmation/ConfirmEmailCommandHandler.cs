@@ -8,7 +8,7 @@ using PGLN.Auth.Application.Events.Email;
 
 namespace PGLN.Auth.Application.Features.EmailConfirmation;
 
-public sealed class ConfirmEmailCommandHandler
+internal sealed class ConfirmEmailCommandHandler
     : ICommandHandler<
         ConfirmEmailCommand,
         Result<ConfirmEmailResult>>

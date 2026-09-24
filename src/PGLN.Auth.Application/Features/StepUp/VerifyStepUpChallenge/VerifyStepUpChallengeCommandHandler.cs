@@ -12,7 +12,7 @@ using PGLN.Auth.Domain.TrustedDevices;
 
 namespace PGLN.Auth.Application.Features.StepUp.VerifyStepUpChallenge;
 
-public sealed class VerifyStepUpChallengeCommandHandler
+internal sealed class VerifyStepUpChallengeCommandHandler
     : ICommandHandler<
         VerifyStepUpChallengeCommand,
         Result<VerifyStepUpChallengeResult>>

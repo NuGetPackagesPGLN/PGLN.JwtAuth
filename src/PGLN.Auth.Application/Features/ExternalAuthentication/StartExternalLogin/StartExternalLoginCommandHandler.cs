@@ -4,7 +4,7 @@ using PGLN.Auth.Application.Common;
 
 namespace PGLN.Auth.Application.Features.ExternalAuthentication.StartExternalLogin;
 
-public sealed class StartExternalLoginCommandHandler
+internal sealed class StartExternalLoginCommandHandler
     : ICommandHandler<
         StartExternalLoginCommand,
         Result<StartExternalLoginResult>>

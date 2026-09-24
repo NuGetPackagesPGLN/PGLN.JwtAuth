@@ -1,8 +1,8 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PGLN.Auth.Application.Features.ForgotPassword;
 
-public sealed class ForgotPasswordCommandValidator
+internal sealed class ForgotPasswordCommandValidator
     : AbstractValidator<ForgotPasswordCommand>
 {
     public ForgotPasswordCommandValidator()
