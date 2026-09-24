@@ -8,7 +8,7 @@
 
   <PropertyGroup>
     <PackageId>PGLN.Auth</PackageId>
-    <Version>0.1.0-preview.1</Version>
+    <Version>0.1.0-rc.1</Version>
 
     <Title>PGLN.Auth</Title>
 
@@ -85,4 +85,3 @@
   </ItemGroup>
 
 </Project>
-
