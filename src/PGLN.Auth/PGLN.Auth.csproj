@@ -20,6 +20,7 @@
       authentication;authorization;aspnetcore;identity;jwt;oauth;security
     </PackageTags>
 
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
     <RepositoryUrl>https://github.com/NuGetPackagesPGLN/PGLN.JwtAuth</RepositoryUrl>
@@ -84,3 +85,4 @@
   </ItemGroup>
 
 </Project>
+
