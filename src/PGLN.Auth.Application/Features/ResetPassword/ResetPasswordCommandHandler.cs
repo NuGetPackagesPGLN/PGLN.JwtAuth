@@ -1,8 +1,10 @@
 using PGLN.Auth.Application.Abstractions.Authentication;
+using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Messaging;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.Application.Common;
+using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Domain.Users;
 
 namespace PGLN.Auth.Application.Features.ResetPassword;
@@ -35,6 +37,9 @@ internal sealed class ResetPasswordCommandHandler
     private readonly ITokenHasher
         _tokenHasher;
 
+    private readonly IIntegrationEventPublisher
+        _integrationEventPublisher;
+
     private readonly IUnitOfWork
         _unitOfWork;
 
@@ -48,6 +53,7 @@ internal sealed class ResetPasswordCommandHandler
         IAuthSessionRepository authSessionRepository,
         IPasswordHasher passwordHasher,
         ITokenHasher tokenHasher,
+        IIntegrationEventPublisher integrationEventPublisher,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
@@ -68,6 +74,9 @@ internal sealed class ResetPasswordCommandHandler
 
         ArgumentNullException.ThrowIfNull(
             tokenHasher);
+
+        ArgumentNullException.ThrowIfNull(
+            integrationEventPublisher);
 
         ArgumentNullException.ThrowIfNull(
             unitOfWork);
@@ -92,6 +101,9 @@ internal sealed class ResetPasswordCommandHandler
 
         _tokenHasher =
             tokenHasher;
+
+        _integrationEventPublisher =
+            integrationEventPublisher;
 
         _unitOfWork =
             unitOfWork;
@@ -220,6 +232,18 @@ internal sealed class ResetPasswordCommandHandler
                 SessionRevocationReason);
         }
 
+        var notificationRequested =
+            new PasswordChangedNotificationRequested(
+                Guid.NewGuid(),
+                user.Id,
+                user.Email.Value,
+                now);
+
+        await _integrationEventPublisher
+            .PublishAsync(
+                notificationRequested,
+                cancellationToken);
+
         await _unitOfWork
             .SaveChangesAsync(
                 cancellationToken);
@@ -227,4 +251,3 @@ internal sealed class ResetPasswordCommandHandler
         return Result.Success();
     }
 }
-

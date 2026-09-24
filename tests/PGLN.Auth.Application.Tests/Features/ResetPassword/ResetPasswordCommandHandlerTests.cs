@@ -1,3 +1,4 @@
+using PGLN.Auth.Application.Events.Email;
 using PGLN.Auth.Application.Features.ResetPassword;
 using PGLN.Auth.Application.Tests.TestDoubles;
 using PGLN.Auth.Domain.PasswordResets;
@@ -75,6 +76,61 @@ public sealed class ResetPasswordCommandHandlerTests
         Assert.Equal(
             passwordHasher.HashResult,
             user.PasswordHash);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithValidRequest_ShouldPublishPasswordChangedNotification()
+    {
+        var user =
+            CreateUser();
+
+        var users =
+            new FakeUserRepository();
+
+        users.Seed(
+            user);
+
+        var resetTokens =
+            new FakePasswordResetTokenRepository();
+
+        resetTokens.Seed(
+            CreateResetToken(
+                user.Id));
+
+        var integrationEventPublisher =
+            new FakeIntegrationEventPublisher();
+
+        var result =
+            await CreateHandler(
+                    users,
+                    resetTokens,
+                    integrationEventPublisher:
+                        integrationEventPublisher)
+                .HandleAsync(
+                    CreateCommand());
+
+        Assert.True(
+            result.IsSuccess);
+
+        var integrationEvent =
+            Assert.Single(
+                integrationEventPublisher.Events);
+
+        var passwordChanged =
+            Assert.IsType<PasswordChangedNotificationRequested>(
+                integrationEvent);
+
+        Assert.Equal(
+            user.Id,
+            passwordChanged.UserId);
+
+        Assert.Equal(
+            EmailAddress,
+            passwordChanged.Email);
+
+        Assert.Equal(
+            Now,
+            passwordChanged.OccurredAtUtc);
     }
 
     [Fact]
@@ -787,6 +843,7 @@ public sealed class ResetPasswordCommandHandlerTests
         FakeRefreshTokenRepository? refreshTokenRepository = null,
         FakeAuthSessionRepository? authSessionRepository = null,
         FakePasswordHasher? passwordHasher = null,
+        FakeIntegrationEventPublisher? integrationEventPublisher = null,
         FakeUnitOfWork? unitOfWork = null)
     {
         return new ResetPasswordCommandHandler(
@@ -799,6 +856,8 @@ public sealed class ResetPasswordCommandHandlerTests
             passwordHasher ??
                 new FakePasswordHasher(),
             new FakeTokenHasher(),
+            integrationEventPublisher ??
+                new FakeIntegrationEventPublisher(),
             unitOfWork ??
                 new FakeUnitOfWork(),
             new FakeClock(
@@ -855,10 +914,3 @@ public sealed class ResetPasswordCommandHandlerTests
             Now.AddDays(29));
     }
 }
-
-
-
-
-
-
-

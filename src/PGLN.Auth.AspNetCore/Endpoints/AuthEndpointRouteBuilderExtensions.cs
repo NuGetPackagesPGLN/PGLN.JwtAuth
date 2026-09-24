@@ -38,6 +38,9 @@ public static class AuthEndpointRouteBuilderExtensions
         ConfirmEmailChangeEndpoint.Map(
             group);
 
+        group.MapRequestEmailChange()
+            .RequireAuthorization();
+
         group.MapLoginEndpoint();
 
         group.MapVerifyStepUpEndpoint();
@@ -74,4 +77,3 @@ public static class AuthEndpointRouteBuilderExtensions
         return group;
     }
 }
-
