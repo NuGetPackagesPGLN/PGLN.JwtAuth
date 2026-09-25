@@ -14,13 +14,36 @@ public static class PGLNAuthServiceCollectionExtensions
     public static IServiceCollection AddPGLNAuth(
         this IServiceCollection services,
         IConfiguration configuration,
-        Action<DbContextOptionsBuilder> configureDatabase)
+        Action<DbContextOptionsBuilder> configureDatabase,
+        Action<PGLNAuthOptions>? configureAuth = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(configureDatabase);
 
-        services.AddPGLNAuthApplication();
+        var authOptions =
+            new PGLNAuthOptions();
+
+        configureAuth?.Invoke(
+            authOptions);
+
+        services.AddPGLNAuthApplication(
+            passwordPolicy:
+                authOptions.PasswordPolicy,
+            emailVerificationOptions:
+                authOptions.EmailVerification,
+            emailDeliveryOptions:
+                authOptions.EmailDelivery,
+            refreshTokenOptions:
+                authOptions.RefreshTokens,
+            accountLockoutOptions:
+                authOptions.AccountLockout,
+            loginEmailThrottleOptions:
+                authOptions.LoginEmailThrottle,
+            stepUpChallengeOptions:
+                authOptions.StepUp,
+            passwordResetOptions:
+                authOptions.PasswordReset);
 
         services.AddPGLNAuthInfrastructure(
             configuration);
@@ -37,7 +60,8 @@ public static class PGLNAuthServiceCollectionExtensions
     public static IServiceCollection AddPGLNAuthPostgreSql(
         this IServiceCollection services,
         IConfiguration configuration,
-        string connectionString)
+        string connectionString,
+        Action<PGLNAuthOptions>? configureAuth = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -58,6 +82,7 @@ public static class PGLNAuthServiceCollectionExtensions
                                 .GetName()
                                 .Name);
                     });
-            });
+            },
+            configureAuth);
     }
 }
