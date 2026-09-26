@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/solution-foundation
-      - chore/v0.1.0-release-audit
 
   pull_request:
     branches:
