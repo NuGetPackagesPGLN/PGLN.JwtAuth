@@ -1,10 +1,12 @@
 name: Publish NuGet
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -15,7 +17,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout repository
+      - name: Checkout tagged source
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -25,6 +27,37 @@ jobs:
 
       - name: Display .NET information
         run: dotnet --info
+
+      - name: Determine release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+
+          if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Invalid release tag: $TAG"
+            exit 1
+          fi
+
+          VERSION="${BASH_REMATCH[1]}"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "Release tag: $TAG"
+          echo "Package version: $VERSION"
+
+      - name: Prevent v0.1.0 republish
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ steps.version.outputs.version }}" == "0.1.0" ]]; then
+            echo "PGLN.Auth 0.1.0 is already published and immutable."
+            exit 1
+          fi
 
       - name: Restore
         run: dotnet restore PGLN.Auth.slnx
@@ -42,24 +75,66 @@ jobs:
           --no-build
           --no-restore
 
-      - name: Download frozen v0.1.0 package
+      - name: Pack release artifact
         shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p artifacts/publish
 
-          curl \
-            --fail \
-            --location \
-            --silent \
-            --show-error \
-            --output artifacts/publish/PGLN.Auth.0.1.0.nupkg \
-            https://github.com/NuGetPackagesPGLN/PGLN.JwtAuth/releases/download/v0.1.0/PGLN.Auth.0.1.0.nupkg
+          dotnet pack src/PGLN.Auth/PGLN.Auth.csproj \
+            --configuration Release \
+            --no-build \
+            --no-restore \
+            --output artifacts/publish \
+            -p:PackageVersion="${{ steps.version.outputs.version }}"
 
-      - name: Verify package SHA-256
+      - name: Verify package artifact
         shell: bash
         run: |
-          echo "C5CE36B69F850BDE9F8DD7D7E072901C142EC58DAFF50DF60842BF6F096938B8  artifacts/publish/PGLN.Auth.0.1.0.nupkg" \
-            | sha256sum --check
+          set -euo pipefail
+
+          PACKAGE="artifacts/publish/PGLN.Auth.${{ steps.version.outputs.version }}.nupkg"
+
+          if [[ ! -f "$PACKAGE" ]]; then
+            echo "Expected package was not produced: $PACKAGE"
+            exit 1
+          fi
+
+          echo "Package:"
+          ls -lh "$PACKAGE"
+
+          echo "SHA-256:"
+          sha256sum "$PACKAGE"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PGLN.Auth-${{ steps.version.outputs.version }}
+          path: artifacts/publish/PGLN.Auth.${{ steps.version.outputs.version }}.nupkg
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attach package to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PACKAGE="artifacts/publish/PGLN.Auth.${{ steps.version.outputs.version }}.nupkg"
+          TAG="${{ steps.version.outputs.tag }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG already exists."
+          else
+            gh release create "$TAG" \
+              --title "PGLN.Auth $TAG" \
+              --generate-notes \
+              --verify-tag
+          fi
+
+          gh release upload "$TAG" "$PACKAGE" --clobber
 
       - name: Authenticate to NuGet
         id: nuget-login
@@ -67,9 +142,9 @@ jobs:
         with:
           user: Nathi-devDot
 
-      - name: Publish PGLN.Auth 0.1.0
+      - name: Publish to NuGet.org
         run: >
           dotnet nuget push
-          artifacts/publish/PGLN.Auth.0.1.0.nupkg
+          artifacts/publish/PGLN.Auth.${{ steps.version.outputs.version }}.nupkg
           --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
