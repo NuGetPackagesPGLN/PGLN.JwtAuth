@@ -42,8 +42,34 @@ jobs:
           --no-build
           --no-restore
 
+      - name: Download frozen v0.1.0 package
+        shell: bash
+        run: |
+          mkdir -p artifacts/publish
+
+          curl \
+            --fail \
+            --location \
+            --silent \
+            --show-error \
+            --output artifacts/publish/PGLN.Auth.0.1.0.nupkg \
+            https://github.com/NuGetPackagesPGLN/PGLN.JwtAuth/releases/download/v0.1.0/PGLN.Auth.0.1.0.nupkg
+
+      - name: Verify package SHA-256
+        shell: bash
+        run: |
+          echo "C5CE36B69F850BDE9F8DD7D7E072901C142EC58DAFF50DF60842BF6F096938B8  artifacts/publish/PGLN.Auth.0.1.0.nupkg" \
+            | sha256sum --check
+
       - name: Authenticate to NuGet
         id: nuget-login
         uses: NuGet/login@v1
         with:
           user: Nathi-devDot
+
+      - name: Publish PGLN.Auth 0.1.0
+        run: >
+          dotnet nuget push
+          artifacts/publish/PGLN.Auth.0.1.0.nupkg
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
