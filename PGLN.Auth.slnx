@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/PGLN.Auth.Sample.AspNetCore/PGLN.Auth.Sample.AspNetCore.csproj" />
+    <Project Path="samples/PGLN.Auth.Sample.AwsEmailWorker/PGLN.Auth.Sample.AwsEmailWorker.csproj" />
     <Project Path="samples/PGLN.Auth.Sample.AwsLambda/PGLN.Auth.Sample.AwsLambda.csproj" />
+    <Project Path="samples/PGLN.Auth.Sample.AwsOutboxPublisher/PGLN.Auth.Sample.AwsOutboxPublisher.csproj" />
     <Project Path="samples/PGLN.Auth.Sample.AzureFunctions/PGLN.Auth.Sample.AzureFunctions.csproj" />
     <Project Path="samples/PGLN.Auth.Sample.ExistingApplication/PGLN.Auth.Sample.ExistingApplication.csproj" />
   </Folder>

@@ -1,6 +1,8 @@
+using PGLN.Auth.Application.Events.Dispatching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Events;
+using PGLN.Auth.Application.Abstractions.Outbox;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.ExternalLogins;
 using PGLN.Auth.EntityFrameworkCore.Outbox;
@@ -95,10 +97,3 @@ public static class DependencyInjection
         return services;
     }
 }
-
-
-
-
-
-
-

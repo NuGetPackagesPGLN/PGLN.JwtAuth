@@ -1,18 +1,21 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>b79f480e-6b46-4601-a071-bf944e306b42</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PGLN.Auth.AspNetCore\PGLN.Auth.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.Aws\PGLN.Auth.Aws.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth\PGLN.Auth.csproj" />
   </ItemGroup>
 
 </Project>

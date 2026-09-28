@@ -1,6 +1,4 @@
-using PGLN.Auth.Application.Abstractions.Events;
-
-namespace PGLN.Auth.EntityFrameworkCore.Outbox;
+namespace PGLN.Auth.Application.Abstractions.Events;
 
 public interface IIntegrationEventDispatcher
 {

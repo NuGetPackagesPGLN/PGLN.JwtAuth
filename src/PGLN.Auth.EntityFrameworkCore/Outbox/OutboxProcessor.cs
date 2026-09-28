@@ -1,6 +1,8 @@
+using PGLN.Auth.Application.Events.Dispatching;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PGLN.Auth.Application.Abstractions.Events;
+using PGLN.Auth.Application.Abstractions.Outbox;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 
