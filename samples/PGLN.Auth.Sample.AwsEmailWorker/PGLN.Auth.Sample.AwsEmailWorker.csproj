@@ -14,6 +14,7 @@
     <PackageReference Include="Amazon.Lambda.Core" />
     <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" />
     <PackageReference Include="Amazon.Lambda.SQSEvents" />
+    <PackageReference Include="AWSSDK.SQS" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
@@ -23,6 +24,7 @@
     <ProjectReference Include="..\..\src\PGLN.Auth.Application\PGLN.Auth.Application.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.Aws\PGLN.Auth.Aws.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore.PostgreSql\PGLN.Auth.EntityFrameworkCore.PostgreSql.csproj" />
   </ItemGroup>
 
 </Project>

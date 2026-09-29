@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Events;
 using PGLN.Auth.Application.Abstractions.Outbox;
+using PGLN.Auth.Application.Abstractions.Inbox;
 using PGLN.Auth.Application.Abstractions.Persistence;
 using PGLN.Auth.Domain.ExternalLogins;
 using PGLN.Auth.EntityFrameworkCore.Outbox;
+using PGLN.Auth.EntityFrameworkCore.Inbox;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 using PGLN.Auth.EntityFrameworkCore.Persistence.Repositories;
 
@@ -87,6 +89,10 @@ public static class DependencyInjection
             IOutboxProcessor,
             OutboxProcessor>();
 
+        services.AddScoped<
+            IIntegrationEventInbox,
+            EfIntegrationEventInbox>();
+
         services.AddSingleton<
             IntegrationEventTypeRegistry>();
 
@@ -96,4 +102,26 @@ public static class DependencyInjection
 
         return services;
     }
+
+    public static IServiceCollection AddPGLNAuthIntegrationEventInbox(
+        this IServiceCollection services,
+        Action<DbContextOptionsBuilder> configureOptions)
+    {
+        ArgumentNullException.ThrowIfNull(
+            services);
+
+        ArgumentNullException.ThrowIfNull(
+            configureOptions);
+
+        services.AddDbContext<AuthDbContext>(
+            configureOptions);
+
+        services.AddScoped<
+            IIntegrationEventInbox,
+            EfIntegrationEventInbox>();
+
+        return services;
+    }
+
+
 }

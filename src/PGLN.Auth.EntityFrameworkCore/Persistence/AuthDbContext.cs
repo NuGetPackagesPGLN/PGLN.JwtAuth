@@ -9,6 +9,7 @@ using PGLN.Auth.Domain.TrustedDevices;
 using PGLN.Auth.Domain.Users;
 using PGLN.Auth.Domain.ExternalLogins;
 using PGLN.Auth.Domain.VerificationTokens;
+using PGLN.Auth.EntityFrameworkCore.Inbox;
 using PGLN.Auth.EntityFrameworkCore.Outbox;
 
 namespace PGLN.Auth.EntityFrameworkCore.Persistence;
@@ -33,6 +34,9 @@ public sealed class AuthDbContext
 
     public DbSet<OutboxMessage> OutboxMessages =>
         Set<OutboxMessage>();
+
+    public DbSet<InboxMessage> InboxMessages =>
+        Set<InboxMessage>();
 
     public DbSet<RefreshToken> RefreshTokens =>
         Set<RefreshToken>();
@@ -65,8 +69,3 @@ public sealed class AuthDbContext
             typeof(AuthDbContext).Assembly);
     }
 }
-
-
-
-
-

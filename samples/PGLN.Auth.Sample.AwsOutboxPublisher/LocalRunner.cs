@@ -12,7 +12,7 @@ namespace PGLN.Auth.Sample.AwsOutboxPublisher;
 
 public static class LocalRunner
 {
-    public static async Task<int> RunAsync()
+    public static async Task<int> RunAsync(Guid? replayMessageId = null)
     {
         var configuration =
             new ConfigurationBuilder()
@@ -57,6 +57,32 @@ public static class LocalRunner
         await using var serviceProvider =
             services.BuildServiceProvider(
                 validateScopes: true);
+
+        if (replayMessageId.HasValue)
+        {
+            const string expectedQueue =
+                "https://sqs.af-south-1.amazonaws.com/904560149590/pgln-auth-email-e2e-dev";
+
+            var configuredQueue =
+                configuration["PGLNAuth:Aws:Sqs:QueueUrl"];
+
+            if (!string.Equals(
+                configuredQueue,
+                expectedQueue,
+                StringComparison.Ordinal) ||
+                configuration["PGLNAuth:Aws:Sqs:Region"] !=
+                    "af-south-1")
+            {
+                throw new InvalidOperationException(
+                    "Replay requires the isolated E2E SQS queue.");
+            }
+
+            await OutboxReplay.ReplayAsync(
+                serviceProvider,
+                replayMessageId.Value);
+
+            return 1;
+        }
 
         var publisher =
             serviceProvider

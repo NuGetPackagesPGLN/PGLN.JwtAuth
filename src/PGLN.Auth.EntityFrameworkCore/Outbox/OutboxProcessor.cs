@@ -129,8 +129,14 @@ public sealed class OutboxProcessor
                         $"Unable to deserialize outbox message '{message.Id}' as '{message.Type}'.");
                 }
 
+                var dispatchContext =
+                    new IntegrationEventDispatchContext(
+                        MessageId: message.Id,
+                        OccurredAtUtc: message.OccurredAtUtc);
+
                 await _dispatcher.DispatchAsync(
                     integrationEvent,
+                    dispatchContext,
                     cancellationToken);
 
                 message.MarkProcessed(

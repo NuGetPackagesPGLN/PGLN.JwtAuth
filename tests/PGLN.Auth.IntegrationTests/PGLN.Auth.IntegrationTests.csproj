@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\PGLN.Auth.Domain\PGLN.Auth.Domain.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore.PostgreSql\PGLN.Auth.EntityFrameworkCore.PostgreSql.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -3,25 +3,38 @@ using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Email;
 using PGLN.Auth.Application.Events;
 using PGLN.Auth.Aws.Email;
+using PGLN.Auth.EntityFrameworkCore.PostgreSql;
 using PGLN.Auth.Infrastructure.Email;
 
 namespace PGLN.Auth.Sample.AwsEmailWorker;
 
 internal static class WorkerServices
 {
+    private static readonly Lazy<IConfiguration> LazyConfiguration =
+        new(CreateConfiguration);
+
     private static readonly Lazy<IServiceProvider> LazyProvider =
         new(CreateProvider);
+
+    public static IConfiguration Configuration =>
+        LazyConfiguration.Value;
 
     public static IServiceProvider Provider =>
         LazyProvider.Value;
 
+    private static IConfiguration CreateConfiguration()
+    {
+        return new ConfigurationBuilder()
+            .AddUserSecrets<Function>(
+                optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+    }
+
     private static IServiceProvider CreateProvider()
     {
         var configuration =
-            new ConfigurationBuilder()
-                .AddUserSecrets<Function>()
-                .AddEnvironmentVariables()
-                .Build();
+            Configuration;
 
         var services =
             new ServiceCollection();
@@ -29,11 +42,23 @@ internal static class WorkerServices
         services.AddSingleton<IConfiguration>(
             configuration);
 
-        // Register only integration-event handlers + dispatcher.
-        // Do not register the complete authentication application layer.
+        var connectionString =
+            configuration.GetConnectionString(
+                "PGLNAuth");
+
+        if (string.IsNullOrWhiteSpace(
+                connectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string 'PGLNAuth' is required.");
+        }
+
+        services
+            .AddPGLNAuthPostgreSqlIntegrationEventInbox(
+                connectionString);
+
         services.AddPGLNAuthIntegrationEvents();
 
-        // Some email handlers need these URLs when rendering links.
         var emailDeliveryOptions =
             new EmailDeliveryOptions();
 
@@ -42,10 +67,8 @@ internal static class WorkerServices
         services.AddSingleton(
             emailDeliveryOptions);
 
-        // Default PGLN.Auth email templates.
         services.AddPGLNAuthDefaultEmailTemplates();
 
-        // AWS SES implementation of IEmailSender.
         services.AddPGLNAuthAwsSes(
             configuration);
 

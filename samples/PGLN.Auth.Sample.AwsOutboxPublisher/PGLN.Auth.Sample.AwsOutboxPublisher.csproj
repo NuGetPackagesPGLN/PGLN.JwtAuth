@@ -15,5 +15,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PGLN.Auth.Aws\PGLN.Auth.Aws.csproj" />
     <ProjectReference Include="..\..\src\PGLN.Auth\PGLN.Auth.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
   </ItemGroup>
 </Project>
