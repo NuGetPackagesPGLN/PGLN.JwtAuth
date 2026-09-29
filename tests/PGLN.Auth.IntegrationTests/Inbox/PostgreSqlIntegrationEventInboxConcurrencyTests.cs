@@ -38,6 +38,14 @@ public sealed class PostgreSqlIntegrationEventInboxConcurrencyTests
                     ValidateOnBuild = true
                 });
 
+        // Apply migrations before concurrent workers access the inbox.
+        await using (var migrationScope = provider.CreateAsyncScope())
+        {
+            var dbContext = migrationScope.ServiceProvider
+                .GetRequiredService<AuthDbContext>();
+
+            await dbContext.Database.MigrateAsync();
+        }
         var messageId =
             Guid.NewGuid();
 
