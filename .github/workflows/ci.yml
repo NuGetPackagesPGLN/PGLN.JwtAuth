@@ -16,6 +16,22 @@ jobs:
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pgln_test
+          POSTGRES_PASSWORD: ci_test_password
+          POSTGRES_DB: pgln_auth_tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pgln_test -d pgln_auth_tests"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     timeout-minutes: 15
 
     steps:
@@ -40,6 +56,8 @@ jobs:
           --no-restore
 
       - name: Test
+        env:
+          PGLN_AUTH_POSTGRES_TEST_CONNECTION_STRING: "Host=localhost;Port=5432;Database=pgln_auth_tests;Username=pgln_test;Password=ci_test_password"
         run: >
           dotnet test PGLN.Auth.slnx
           --configuration Release
