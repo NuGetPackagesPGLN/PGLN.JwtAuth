@@ -1,7 +1,7 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using PGLN.Auth.Application.Abstractions.Events;
 
-namespace PGLN.Auth.EntityFrameworkCore.Outbox;
+namespace PGLN.Auth.Application.Events.Dispatching;
 
 public sealed class IntegrationEventDispatcher
     : IIntegrationEventDispatcher
@@ -20,10 +20,14 @@ public sealed class IntegrationEventDispatcher
 
     public async Task DispatchAsync(
         IIntegrationEvent integrationEvent,
+        IntegrationEventDispatchContext context,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(
             integrationEvent);
+
+        ArgumentNullException.ThrowIfNull(
+            context);
 
         var eventType =
             integrationEvent.GetType();

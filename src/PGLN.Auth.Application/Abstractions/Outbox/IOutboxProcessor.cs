@@ -1,4 +1,4 @@
-namespace PGLN.Auth.EntityFrameworkCore.Outbox;
+namespace PGLN.Auth.Application.Abstractions.Outbox;
 
 public interface IOutboxProcessor
 {

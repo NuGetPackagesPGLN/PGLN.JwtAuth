@@ -1,6 +1,8 @@
+using PGLN.Auth.Application.Events.Dispatching;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PGLN.Auth.Application.Abstractions.Events;
+using PGLN.Auth.Application.Abstractions.Outbox;
 using PGLN.Auth.Application.Abstractions.Time;
 using PGLN.Auth.EntityFrameworkCore.Persistence;
 
@@ -127,8 +129,14 @@ public sealed class OutboxProcessor
                         $"Unable to deserialize outbox message '{message.Id}' as '{message.Type}'.");
                 }
 
+                var dispatchContext =
+                    new IntegrationEventDispatchContext(
+                        MessageId: message.Id,
+                        OccurredAtUtc: message.OccurredAtUtc);
+
                 await _dispatcher.DispatchAsync(
                     integrationEvent,
+                    dispatchContext,
                     cancellationToken);
 
                 message.MarkProcessed(

@@ -1,10 +1,9 @@
-using PGLN.Auth.Application.Abstractions.Events;
-
-namespace PGLN.Auth.EntityFrameworkCore.Outbox;
+﻿namespace PGLN.Auth.Application.Abstractions.Events;
 
 public interface IIntegrationEventDispatcher
 {
     Task DispatchAsync(
         IIntegrationEvent integrationEvent,
+        IntegrationEventDispatchContext context,
         CancellationToken cancellationToken = default);
 }

@@ -1,41 +1,69 @@
+using Microsoft.AspNetCore.DataProtection;
+using Amazon.Lambda.AspNetCoreServer.Hosting;
+using PGLN.Auth;
+using PGLN.Auth.AspNetCore.Endpoints;
+using PGLN.Auth.AspNetCore.Extensions;
+using PGLN.Auth.Aws.Email;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// API Gateway HTTP API -> AWS Lambda -> ASP.NET Core
+builder.Services.AddAWSLambdaHosting(
+    LambdaEventSource.HttpApi);
+
+var connectionString =
+    builder.Configuration.GetConnectionString("PGLNAuth")
+    ?? throw new InvalidOperationException(
+        "Connection string 'PGLNAuth' is required.");
+
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("PGLN.Auth.Aws");
+
+builder.Services.AddPGLNAuthPostgreSql(
+    builder.Configuration,
+    connectionString);
+
+builder.Services.AddPGLNAuthAwsSes(
+    builder.Configuration);
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// For the sample we apply migrations automatically.
+// A production AWS deployment may instead run migrations
+// as a separate deployment step.
+await app.Services.ApplyPGLNAuthMigrationsAsync();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+app.UsePGLNAuth();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapPGLNAuthEndpoints();
+
+app.MapGet(
+    "/health",
+    () => Results.Ok(
+        new
+        {
+            status = "healthy",
+            host = "aws-lambda"
+        }));
+
+app.MapGet(
+        "/protected",
+        () => Results.Ok(
+            new
+            {
+                message = "PGLN.Auth authentication succeeded."
+            }))
+    .RequireAuthorization();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

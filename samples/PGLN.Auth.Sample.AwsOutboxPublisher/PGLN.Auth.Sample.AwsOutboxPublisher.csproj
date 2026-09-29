@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AWSProjectType>Lambda</AWSProjectType>
+    <UserSecretsId>66f76ffb-46b5-4198-a8e6-f66448642641</UserSecretsId>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PGLN.Auth.Aws\PGLN.Auth.Aws.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth\PGLN.Auth.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore\PGLN.Auth.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AWSProjectType>Lambda</AWSProjectType>
+    <UserSecretsId>6e5f8e8d-1c9d-4aac-9418-58815e38dc53</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" />
+    <PackageReference Include="Amazon.Lambda.SQSEvents" />
+    <PackageReference Include="AWSSDK.SQS" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PGLN.Auth.Application\PGLN.Auth.Application.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.Aws\PGLN.Auth.Aws.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.Infrastructure\PGLN.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PGLN.Auth.EntityFrameworkCore.PostgreSql\PGLN.Auth.EntityFrameworkCore.PostgreSql.csproj" />
+  </ItemGroup>
+
+</Project>

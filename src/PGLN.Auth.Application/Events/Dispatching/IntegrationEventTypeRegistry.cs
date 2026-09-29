@@ -1,6 +1,6 @@
-using PGLN.Auth.Application.Events.Email;
+﻿using PGLN.Auth.Application.Events.Email;
 
-namespace PGLN.Auth.EntityFrameworkCore.Outbox;
+namespace PGLN.Auth.Application.Events.Dispatching;
 
 public sealed class IntegrationEventTypeRegistry
 {
@@ -24,12 +24,20 @@ public sealed class IntegrationEventTypeRegistry
 
         _eventTypes =
             eventTypes.ToDictionary(
-                type =>
-                    type.FullName
-                    ?? throw new InvalidOperationException(
-                        $"Unable to resolve full name for integration event type '{type}'."),
+                GetEventTypeName,
                 type => type,
                 StringComparer.Ordinal);
+    }
+
+    public static string GetEventTypeName(
+        Type eventType)
+    {
+        ArgumentNullException.ThrowIfNull(
+            eventType);
+
+        return eventType.FullName
+            ?? throw new InvalidOperationException(
+                $"Unable to resolve full name for integration event type '{eventType}'.");
     }
 
     public Type GetEventType(
