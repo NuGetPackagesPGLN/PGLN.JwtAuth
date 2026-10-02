@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/infra/">
+    <Project Path="infra/PGLN.Auth.Infrastructure.Cdk/PGLN.Auth.Infrastructure.Cdk.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/PGLN.Auth.Sample.AspNetCore/PGLN.Auth.Sample.AspNetCore.csproj" />
     <Project Path="samples/PGLN.Auth.Sample.AwsEmailWorker/PGLN.Auth.Sample.AwsEmailWorker.csproj" />
