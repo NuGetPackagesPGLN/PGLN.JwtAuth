@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# AWS CDK build output (any depth)
+**/cdk.out/
