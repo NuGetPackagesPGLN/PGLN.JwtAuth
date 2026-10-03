@@ -34,10 +34,21 @@ internal static class Program
                 Description = "PGLN.Auth development networking infrastructure"
             });
 
+        var bastionStack = new PGLNAuthBastionStack(
+            app,
+            "PGLNAuthDevBastion",
+            networkStack.Vpc,
+            new StackProps
+            {
+                Env = environment,
+                Description = "PGLN.Auth development SSM bastion host"
+            });
+
         new PGLNAuthDatabaseStack(
             app,
             "PGLNAuthDevDatabase",
             networkStack.Vpc,
+            bastionStack.BastionSecurityGroup,
             new StackProps
             {
                 Env = environment,

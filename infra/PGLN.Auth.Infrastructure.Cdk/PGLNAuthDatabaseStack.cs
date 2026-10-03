@@ -13,6 +13,7 @@ public sealed class PGLNAuthDatabaseStack : Stack
         Construct scope,
         string id,
         IVpc vpc,
+        ISecurityGroup bastionSecurityGroup,
         IStackProps? props = null)
         : base(scope, id, props)
     {
@@ -60,6 +61,10 @@ public sealed class PGLNAuthDatabaseStack : Stack
             RemovalPolicy = RemovalPolicy.DESTROY,
             DeletionProtection = false
         });
+
+        Database.Connections.AllowDefaultPortFrom(
+            bastionSecurityGroup,
+            "Allow SSM bastion to reach PostgreSQL");
 
         new CfnOutput(this, "DbEndpoint", new CfnOutputProps
         {
