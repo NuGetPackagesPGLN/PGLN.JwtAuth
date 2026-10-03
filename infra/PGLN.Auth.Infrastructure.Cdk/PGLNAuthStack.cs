@@ -6,6 +6,8 @@ namespace PGLN.Auth.Infrastructure.Cdk;
 
 public sealed class PGLNAuthStack : Stack
 {
+    public IVpc Vpc { get; }
+
     public PGLNAuthStack(
         Construct scope,
         string id,
@@ -16,7 +18,7 @@ public sealed class PGLNAuthStack : Stack
         Amazon.CDK.Tags.Of(this).Add("Environment", "Development");
         Amazon.CDK.Tags.Of(this).Add("ManagedBy", "AWS-CDK");
 
-        var vpc = new Vpc(this, "AuthVpc", new VpcProps
+        Vpc = new Vpc(this, "AuthVpc", new VpcProps
         {
             VpcName = "pgln-auth-dev-vpc",
             IpAddresses = IpAddresses.Cidr("10.40.0.0/16"),
@@ -46,7 +48,7 @@ public sealed class PGLNAuthStack : Stack
 
         new CfnOutput(this, "VpcId", new CfnOutputProps
         {
-            Value = vpc.VpcId,
+            Value = Vpc.VpcId,
             Description = "PGLN.Auth development VPC ID"
         });
     }

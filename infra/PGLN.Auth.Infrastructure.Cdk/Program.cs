@@ -1,4 +1,4 @@
-﻿using Amazon.CDK;
+using Amazon.CDK;
 
 namespace PGLN.Auth.Infrastructure.Cdk;
 
@@ -25,13 +25,23 @@ internal static class Program
             Region = region
         };
 
-        new PGLNAuthStack(
+        var networkStack = new PGLNAuthStack(
             app,
             "PGLNAuthDev",
             new StackProps
             {
                 Env = environment,
-                Description = "PGLN.Auth development infrastructure"
+                Description = "PGLN.Auth development networking infrastructure"
+            });
+
+        new PGLNAuthDatabaseStack(
+            app,
+            "PGLNAuthDevDatabase",
+            networkStack.Vpc,
+            new StackProps
+            {
+                Env = environment,
+                Description = "PGLN.Auth development PostgreSQL database"
             });
 
         app.Synth();
