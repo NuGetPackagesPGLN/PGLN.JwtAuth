@@ -1,159 +1,280 @@
-﻿# PGLN.Auth
+# PGLN.Auth
 
-PGLN.Auth is a reusable authentication and identity package for ASP.NET Core applications.
+Reusable authentication infrastructure for ASP.NET Core applications built on .NET 10.
 
-It provides a prebuilt authentication foundation for applications that need registration, email verification, login, JWT access tokens, refresh-token rotation, session management, password recovery, step-up authentication, trusted devices, email changes, and optional Google authentication.
-
-The package is designed for .NET 10 applications and includes PostgreSQL persistence through Entity Framework Core.
-
-## Features
-
-PGLN.Auth includes:
+PGLN.Auth provides a reusable authentication foundation including:
 
 - User registration
-- Email confirmation
-- Resend email confirmation
+- Email verification
 - Login
-- JWT access tokens
-- Refresh-token rotation
-- Refresh-token replay detection
-- Logout
-- Logout from all sessions
-- Session management
-- Forgot password
-- Reset password
-- Change password
-- Email address changes
-- Step-up authentication
+- JWT authentication
+- Refresh tokens
+- Password reset
+- Password change
+- Email change
+- Step-up verification
 - Trusted devices
-- Google external authentication
 - Account lockout
-- Login throttling and rate limiting
-- Transactional email outbox
+- Login throttling
+- External login infrastructure
+- Authentication sessions
+- Outbox-based email delivery
 - PostgreSQL persistence
+- Configurable security policies
+- Customizable email templates
+- ASP.NET Core endpoint integration
 - Entity Framework Core migrations
-- Configurable password and token policies
 
-## Requirements
+The package is designed to be consumed by applications rather than copied into individual application codebases.
 
-- .NET 10
-- ASP.NET Core
-- PostgreSQL when using `AddPGLNAuthPostgreSql`
+---
 
-## Installation
+# 1. Prerequisites
 
-Install the package from NuGet:
+Before installing PGLN.Auth, make sure you have:
 
-```bash
+- .NET 10 SDK
+- Docker Desktop
+- PowerShell
+- An ASP.NET Core application
+
+Verify the .NET SDK:
+
+```powershell
+dotnet --version
+```
+
+Verify Docker:
+
+```powershell
+docker --version
+```
+
+---
+
+# 2. Create an ASP.NET Core application
+
+If you already have an ASP.NET Core application, skip this section.
+
+Create a new Web API:
+
+```powershell
+dotnet new webapi -n MyAuthApp
+cd MyAuthApp
+```
+
+Install PGLN.Auth:
+
+```powershell
 dotnet add package PGLN.Auth --version 0.1.0
 ```
 
-## Basic setup
+Restore and build:
 
-Register PGLN.Auth in `Program.cs`:
-
-```csharp
-using PGLN.Auth;
-
-var builder = WebApplication.CreateBuilder(args);
-
-var connectionString =
-    builder.Configuration.GetConnectionString("Auth")
-    ?? throw new InvalidOperationException(
-        "Auth connection string is missing.");
-
-builder.Services.AddPGLNAuthPostgreSql(
-    builder.Configuration,
-    connectionString);
-
-var app = builder.Build();
-
-await app.Services.ApplyPGLNAuthMigrationsAsync();
-
-app.UsePGLNAuth();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapPGLNAuthEndpoints();
-
-app.Run();
+```powershell
+dotnet restore
+dotnet build
 ```
 
-By default, authentication endpoints are mapped under:
+---
+
+# 3. Start PostgreSQL
+
+PGLN.Auth uses PostgreSQL through its Entity Framework Core PostgreSQL integration.
+
+For local development, the easiest approach is Docker.
+
+Create a PostgreSQL 17 container:
+
+```powershell
+docker run --name pgln-auth-postgres `
+    -e POSTGRES_USER=postgres `
+    -e POSTGRES_PASSWORD=postgres `
+    -e POSTGRES_DB=pgln_auth `
+    -p 5434:5432 `
+    -d postgres:17
+```
+
+## Check that the container is running
+
+```powershell
+docker ps
+```
+
+You should see:
 
 ```text
-/api/auth
+pgln-auth-postgres
 ```
 
-A different prefix can be supplied:
+If you want to include stopped containers:
 
-```csharp
-app.MapPGLNAuthEndpoints("/auth");
+```powershell
+docker ps -a
 ```
 
-## Required configuration
+## Check PostgreSQL readiness
 
-PGLN.Auth requires JWT configuration and a step-up authentication HMAC secret.
+```powershell
+docker exec pgln-auth-postgres pg_isready `
+    -U postgres `
+    -d pgln_auth
+```
 
-Example `appsettings.json`:
+Expected output:
+
+```text
+/var/run/postgresql:5432 - accepting connections
+```
+
+## If the container already exists
+
+If Docker reports that the container name is already in use:
+
+```powershell
+docker start pgln-auth-postgres
+```
+
+Then check it:
+
+```powershell
+docker ps
+```
+
+## Stop PostgreSQL
+
+```powershell
+docker stop pgln-auth-postgres
+```
+
+## Start it again later
+
+```powershell
+docker start pgln-auth-postgres
+```
+
+---
+
+# 4. PostgreSQL connection string
+
+For the Docker configuration above:
+
+```text
+Host=localhost;Port=5434;Database=pgln_auth;Username=postgres;Password=postgres
+```
+
+Add it to `appsettings.json`:
 
 ```json
 {
   "ConnectionStrings": {
-    "Auth": "Host=localhost;Port=5432;Database=my_app;Username=postgres;Password=change-me"
-  },
-
-  "PGLNAuth": {
-    "Jwt": {
-      "Issuer": "MyApplication",
-      "Audience": "MyApplication",
-      "SigningKey": "BASE64_ENCODED_256_BIT_OR_LARGER_KEY"
-    },
-
-    "StepUpSecurity": {
-      "HmacSecret": "REPLACE_WITH_A_SECRET_AT_LEAST_32_CHARACTERS_LONG"
-    }
+    "Auth": "Host=localhost;Port=5434;Database=pgln_auth;Username=postgres;Password=postgres"
   }
 }
 ```
 
-Do not commit production secrets to source control.
+> Do not use this development password in production.
 
-Use environment variables, a secret manager, or another secure configuration provider in deployed environments.
+For production, provide the connection string through your deployment environment or secret-management system.
 
-### JWT signing key
+---
 
-`PGLNAuth:Jwt:SigningKey` must:
+# 5. Generate JWT and HMAC secrets
 
-- be Base64 encoded
-- decode to at least 32 bytes (256 bits)
+PGLN.Auth requires cryptographically secure secrets.
 
-The default access-token lifetime is 15 minutes.
+Do not create production secrets using:
 
-### Step-up HMAC secret
-
-`PGLNAuth:StepUpSecurity:HmacSecret` must contain at least 32 characters.
-
-It is used to protect step-up authentication security data and should be treated as a secret.
-
-## Database migrations
-
-PGLN.Auth owns its authentication schema and provides a migration API.
-
-Apply migrations during application startup:
-
-```csharp
-await app.Services.ApplyPGLNAuthMigrationsAsync();
+```text
+password123
+my-secret
+Random()
+Guid.NewGuid()
 ```
 
-This allows consuming applications to initialize or upgrade the PGLN.Auth database schema without directly referencing the package's internal migration infrastructure.
+Use a cryptographically secure random generator instead.
 
-For environments where database migrations are managed separately from application startup, invoke the migration operation as part of your deployment process instead.
+Run this PowerShell script:
 
-## Application options
+```powershell
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 
-Application-level authentication behavior can be customized when registering PGLN.Auth.
+$bytes = New-Object byte[] 32
+$rng.GetBytes($bytes)
+$jwtSigningKey = [Convert]::ToBase64String($bytes)
+
+$bytes = New-Object byte[] 48
+$rng.GetBytes($bytes)
+$hmacSecret = [Convert]::ToBase64String($bytes)
+
+$rng.Dispose()
+
+Write-Host ""
+Write-Host "JWT Signing Key:" -ForegroundColor Cyan
+Write-Host $jwtSigningKey
+
+Write-Host ""
+Write-Host "HMAC Secret:" -ForegroundColor Cyan
+Write-Host $hmacSecret
+Write-Host ""
+```
+
+Copy the generated values somewhere secure.
+
+Do not commit them to Git.
+
+---
+
+# 6. Configure application secrets
+
+The exact configuration names should match the version of PGLN.Auth being consumed.
+
+For local development, prefer:
+
+```text
+appsettings.Development.json
+```
+
+or environment variables / user secrets.
+
+For production, use a secret manager such as AWS Secrets Manager, Azure Key Vault, or another appropriate secret-management system.
+
+Never commit real production secrets to source control.
+
+---
+
+# 7. Configure PGLN.Auth
+
+Import the package:
+
+```csharp
+using PGLN.Auth;
+```
+
+Register PostgreSQL:
+
+```csharp
+builder.Services.AddPGLNAuthPostgreSql(
+    builder.Configuration,
+    connectionString);
+```
+
+The connection string should be retrieved from configuration:
+
+```csharp
+var connectionString =
+    builder.Configuration.GetConnectionString("Auth")
+    ?? throw new InvalidOperationException(
+        "Auth connection string is missing.");
+```
+
+---
+
+# 8. Configure application security options
+
+PGLN.Auth allows applications to replace the default security configuration.
+
+Example:
 
 ```csharp
 builder.Services.AddPGLNAuthPostgreSql(
@@ -164,9 +285,11 @@ builder.Services.AddPGLNAuthPostgreSql(
         auth.PasswordPolicy = new()
         {
             MinimumLength = 16,
+            MaximumLength = 128,
             RequireUppercase = true,
             RequireLowercase = true,
-            RequireDigit = true
+            RequireDigit = true,
+            RequireNonAlphanumeric = true
         };
 
         auth.RefreshTokens = new()
@@ -191,6 +314,7 @@ builder.Services.AddPGLNAuthPostgreSql(
         {
             Lifetime =
                 TimeSpan.FromMinutes(5),
+
             MaxFailedAttempts = 5
         };
 
@@ -208,14 +332,716 @@ builder.Services.AddPGLNAuthPostgreSql(
     });
 ```
 
-Each option group is replaced as a complete object. The individual properties inside the option types are immutable after construction.
+## Important
 
-## Default application settings
+Each option group is replaced as a complete object.
 
-Unless overridden, PGLN.Auth uses the following defaults:
+The properties inside the option types are immutable after construction.
+
+Therefore, when replacing an option group, specify the complete configuration you want the application to use.
+
+---
+
+# 9. Password policy
+
+The application can enforce stronger password requirements than the defaults.
+
+Example:
+
+```csharp
+auth.PasswordPolicy = new()
+{
+    MinimumLength = 16,
+    MaximumLength = 128,
+    RequireUppercase = true,
+    RequireLowercase = true,
+    RequireDigit = true,
+    RequireNonAlphanumeric = true
+};
+```
+
+Default password settings:
 
 | Setting | Default |
-|---|---|
+|---|---:|
+| Minimum length | 12 |
+| Maximum length | 128 |
+| Uppercase required | No |
+| Lowercase required | No |
+| Digit required | No |
+| Non-alphanumeric required | No |
+
+---
+
+# 10. Email verification
+
+Configure the lifetime of email verification tokens:
+
+```csharp
+auth.EmailVerification = new()
+{
+    TokenLifetime =
+        TimeSpan.FromHours(12)
+};
+```
+
+Default:
+
+```text
+24 hours
+```
+
+---
+
+# 11. Refresh tokens
+
+Configure refresh-token lifetime:
+
+```csharp
+auth.RefreshTokens = new()
+{
+    TokenLifetime =
+        TimeSpan.FromDays(14)
+};
+```
+
+Default:
+
+```text
+30 days
+```
+
+---
+
+# 12. Password reset
+
+Configure password-reset token lifetime:
+
+```csharp
+auth.PasswordReset = new()
+{
+    TokenLifetime =
+        TimeSpan.FromMinutes(20)
+};
+```
+
+Default:
+
+```text
+30 minutes
+```
+
+---
+
+# 13. Step-up verification
+
+Configure step-up verification:
+
+```csharp
+auth.StepUp = new()
+{
+    Lifetime =
+        TimeSpan.FromMinutes(5),
+
+    MaxFailedAttempts = 5
+};
+```
+
+Default lifetime:
+
+```text
+10 minutes
+```
+
+Default maximum failed attempts:
+
+```text
+5
+```
+
+---
+
+# 14. Email delivery URLs
+
+Configure the URLs used inside authentication emails:
+
+```csharp
+auth.EmailDelivery = new()
+{
+    ConfirmationBaseUrl =
+        "https://example.com/confirm-email",
+
+    EmailChangeConfirmationBaseUrl =
+        "https://example.com/confirm-email-change",
+
+    ResetPasswordBaseUrl =
+        "https://example.com/reset-password"
+};
+```
+
+For example, the confirmation email may contain:
+
+```text
+https://example.com/confirm-email?token=<token>
+```
+
+These URLs are application-owned endpoints.
+
+PGLN.Auth generates the authentication token and email content, while the consuming application controls where the user is sent.
+
+---
+
+# 15. Email delivery
+
+PGLN.Auth uses an email abstraction rather than requiring a specific email provider.
+
+The application registers an implementation of:
+
+```csharp
+PGLN.Auth.Application.Abstractions.Email.IEmailSender
+```
+
+The interface is:
+
+```csharp
+Task SendAsync(
+    EmailMessage message,
+    CancellationToken cancellationToken = default);
+```
+
+For local development, you can create a simple console/capture sender.
+
+Create:
+
+```text
+Infrastructure/
+└── Email/
+    └── ConsoleEmailSender.cs
+```
+
+Add:
+
+```csharp
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+using PGLN.Auth.Application.Abstractions.Email;
+
+namespace MyAuthApp.Infrastructure.Email;
+
+public sealed record CapturedEmail(
+    string To,
+    string Subject,
+    string? TextBody,
+    string HtmlBody);
+
+public sealed class ConsoleEmailSender : IEmailSender
+{
+    private readonly ILogger<ConsoleEmailSender> _logger;
+
+    public ConsoleEmailSender(
+        ILogger<ConsoleEmailSender> logger)
+    {
+        _logger = logger;
+    }
+
+    public static ConcurrentQueue<CapturedEmail> SentEmails { get; } = new();
+
+    public Task SendAsync(
+        EmailMessage message,
+        CancellationToken cancellationToken = default)
+    {
+        SentEmails.Enqueue(
+            new CapturedEmail(
+                message.To,
+                message.Subject,
+                message.TextBody,
+                message.HtmlBody));
+
+        _logger.LogInformation(
+            "Development email captured for {To}: {Subject}",
+            message.To,
+            message.Subject);
+
+        return Task.CompletedTask;
+    }
+}
+```
+
+Register it:
+
+```csharp
+builder.Services.AddPGLNAuthEmail<ConsoleEmailSender>();
+```
+
+This is intended for development/testing.
+
+In production, replace it with an implementation that sends through your chosen email provider.
+
+---
+
+# 16. Custom email templates
+
+PGLN.Auth provides a default email template renderer.
+
+Applications can replace it with their own implementation.
+
+The abstraction is:
+
+```csharp
+using PGLN.Auth.Application.Abstractions.Email;
+```
+
+Create a class implementing:
+
+```csharp
+IEmailTemplateRenderer
+```
+
+The renderer is responsible for the presentation of the authentication emails.
+
+PGLN.Auth supports templates for:
+
+- Email confirmation
+- Email change confirmation
+- Welcome email
+- Password reset
+- Password changed
+- New device login
+- Step-up verification code
+- Account locked
+- Email changed notification
+
+Register your renderer with dependency injection:
+
+```csharp
+builder.Services.AddSingleton<
+    IEmailTemplateRenderer,
+    MyEmailTemplateRenderer>();
+```
+
+## Important registration order
+
+Register the PGLN.Auth email service first:
+
+```csharp
+builder.Services.AddPGLNAuthEmail<ConsoleEmailSender>();
+```
+
+Then register the custom renderer:
+
+```csharp
+builder.Services.AddSingleton<
+    IEmailTemplateRenderer,
+    MyEmailTemplateRenderer>();
+```
+
+The consumer renderer must be registered after the PGLN.Auth email registration so that the application's implementation overrides the default renderer.
+
+---
+
+# 17. Preview captured emails during development
+
+If using the development sender above, add:
+
+```csharp
+app.MapGet("/test/emails", () =>
+    ConsoleEmailSender.SentEmails.ToArray());
+```
+
+You can also preview the latest email as HTML:
+
+```csharp
+app.MapGet("/test/email-preview", () =>
+{
+    var email =
+        ConsoleEmailSender.SentEmails.LastOrDefault();
+
+    if (email is null)
+    {
+        return Results.NotFound(
+            "No captured emails available.");
+    }
+
+    return Results.Content(
+        email.HtmlBody,
+        "text/html; charset=utf-8");
+});
+```
+
+After registering a user, open:
+
+```text
+/test/email-preview
+```
+
+in your browser.
+
+This is a development/testing endpoint and should not be exposed publicly in production.
+
+---
+
+# 18. Enable the PGLN.Auth outbox worker
+
+PGLN.Auth uses an outbox-based approach for email-related events.
+
+Register the worker:
+
+```csharp
+builder.Services.AddPGLNAuthOutboxBackgroundWorker();
+```
+
+This allows email-related events to be persisted and processed asynchronously.
+
+---
+
+# 19. Apply database migrations
+
+PGLN.Auth exposes:
+
+```csharp
+await app.Services.ApplyPGLNAuthMigrationsAsync();
+```
+
+Add it after building the application:
+
+```csharp
+var app = builder.Build();
+
+await app.Services.ApplyPGLNAuthMigrationsAsync();
+```
+
+This allows the consuming application to initialize or upgrade the PGLN.Auth database schema without directly referencing the package's internal migration infrastructure.
+
+For environments where database migrations are managed separately from application startup, invoke the migration operation as part of the deployment process instead.
+
+---
+
+# 20. Configure the authentication middleware
+
+Add:
+
+```csharp
+app.UsePGLNAuth();
+
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+Then map the PGLN.Auth endpoints:
+
+```csharp
+app.MapPGLNAuthEndpoints();
+```
+
+---
+
+# 21. Complete Program.cs example
+
+A minimal consumer application can look like this:
+
+```csharp
+using PGLN.Auth;
+using PGLN.Auth.Application.Abstractions.Email;
+using PGLN.Auth.AspNetCore.Endpoints;
+using PGLN.Auth.AspNetCore.Extensions;
+using PGLN.Auth.AspNetCore.Outbox;
+using MyAuthApp.Infrastructure.Email;
+
+var builder =
+    WebApplication.CreateBuilder(args);
+
+var connectionString =
+    builder.Configuration.GetConnectionString("Auth")
+    ?? throw new InvalidOperationException(
+        "Auth connection string is missing.");
+
+builder.Services.AddPGLNAuthPostgreSql(
+    builder.Configuration,
+    connectionString,
+    auth =>
+    {
+        auth.PasswordPolicy = new()
+        {
+            MinimumLength = 16,
+            MaximumLength = 128,
+            RequireUppercase = true,
+            RequireLowercase = true,
+            RequireDigit = true,
+            RequireNonAlphanumeric = true
+        };
+
+        auth.RefreshTokens = new()
+        {
+            TokenLifetime =
+                TimeSpan.FromDays(14)
+        };
+
+        auth.EmailVerification = new()
+        {
+            TokenLifetime =
+                TimeSpan.FromHours(12)
+        };
+
+        auth.PasswordReset = new()
+        {
+            TokenLifetime =
+                TimeSpan.FromMinutes(20)
+        };
+
+        auth.StepUp = new()
+        {
+            Lifetime =
+                TimeSpan.FromMinutes(5),
+
+            MaxFailedAttempts = 5
+        };
+
+        auth.EmailDelivery = new()
+        {
+            ConfirmationBaseUrl =
+                "https://example.com/confirm-email",
+
+            EmailChangeConfirmationBaseUrl =
+                "https://example.com/confirm-email-change",
+
+            ResetPasswordBaseUrl =
+                "https://example.com/reset-password"
+        };
+    });
+
+builder.Services.AddPGLNAuthEmail<ConsoleEmailSender>();
+
+// Optional:
+// Replace the default PGLN.Auth email templates.
+builder.Services.AddSingleton<
+    IEmailTemplateRenderer,
+    MyEmailTemplateRenderer>();
+
+builder.Services.AddPGLNAuthOutboxBackgroundWorker();
+
+var app = builder.Build();
+
+await app.Services.ApplyPGLNAuthMigrationsAsync();
+
+app.UsePGLNAuth();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapPGLNAuthEndpoints();
+
+app.MapGet("/health", () =>
+    Results.Ok(new
+    {
+        status = "healthy"
+    }));
+
+app.MapGet("/test/emails", () =>
+    ConsoleEmailSender.SentEmails.ToArray());
+
+app.MapGet("/test/email-preview", () =>
+{
+    var email =
+        ConsoleEmailSender.SentEmails.LastOrDefault();
+
+    if (email is null)
+    {
+        return Results.NotFound(
+            "No captured emails available.");
+    }
+
+    return Results.Content(
+        email.HtmlBody,
+        "text/html; charset=utf-8");
+});
+
+app.Run();
+```
+
+---
+
+# 22. Build the application
+
+Run:
+
+```powershell
+dotnet build
+```
+
+Expected:
+
+```text
+Build succeeded.
+```
+
+---
+
+# 23. Run the application
+
+Run:
+
+```powershell
+dotnet run
+```
+
+ASP.NET Core will display the URL where the application is listening.
+
+For example:
+
+```text
+http://localhost:5267
+```
+
+---
+
+# 24. Check the health endpoint
+
+From another PowerShell window:
+
+```powershell
+Invoke-RestMethod `
+    -Uri "http://localhost:5267/health" `
+    -Method Get
+```
+
+Expected:
+
+```text
+status
+------
+healthy
+```
+
+---
+
+# 25. Register a user
+
+Example:
+
+```powershell
+$response = Invoke-RestMethod `
+    -Uri "http://localhost:5267/api/auth/register" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body (@{
+        email = "test@example.com"
+        password = "ValidPassword1234!"
+    } | ConvertTo-Json)
+
+$response
+```
+
+The password must satisfy your configured password policy.
+
+---
+
+# 26. Inspect captured emails
+
+If using `ConsoleEmailSender`:
+
+```powershell
+Invoke-RestMethod `
+    -Uri "http://localhost:5267/test/emails" `
+    -Method Get
+```
+
+Or:
+
+```powershell
+Invoke-RestMethod `
+    -Uri "http://localhost:5267/test/emails" `
+    -Method Get |
+    ConvertTo-Json -Depth 10
+```
+
+---
+
+# 27. Preview the email in a browser
+
+Open:
+
+```text
+http://localhost:5267/test/email-preview
+```
+
+The latest captured HTML email will be rendered by the browser.
+
+---
+
+# 28. Database inspection
+
+Check the PostgreSQL container:
+
+```powershell
+docker ps
+```
+
+Connect directly to PostgreSQL:
+
+```powershell
+docker exec -it pgln-auth-postgres psql `
+    -U postgres `
+    -d pgln_auth
+```
+
+List tables:
+
+```sql
+\dt
+```
+
+Exit:
+
+```sql
+\q
+```
+
+You can also execute individual queries without entering the PostgreSQL shell.
+
+For example:
+
+```powershell
+docker exec pgln-auth-postgres psql `
+    -U postgres `
+    -d pgln_auth `
+    -c '\dt'
+```
+
+---
+
+# 29. Authentication database schema
+
+PGLN.Auth maintains authentication-related persistence including tables for functionality such as:
+
+- Users
+- AuthSessions
+- RefreshTokens
+- EmailVerificationTokens
+- EmailChangeTokens
+- PasswordResetTokens
+- StepUpChallenges
+- TrustedDevices
+- LoginAttempts
+- ExternalLogins
+- OutboxMessages
+- EF Core migration history
+
+The exact schema is owned by the package and should not normally be recreated manually by the consuming application.
+
+Use:
+
+```csharp
+await app.Services.ApplyPGLNAuthMigrationsAsync();
+```
+
+to initialize or upgrade the schema.
+
+---
+
+# 30. Default application settings
+
+| Setting | Default |
+|---|---:|
 | Minimum password length | 12 |
 | Maximum password length | 128 |
 | Require uppercase | No |
@@ -233,227 +1059,258 @@ Unless overridden, PGLN.Auth uses the following defaults:
 | Login email throttle attempts | 10 |
 | Login email throttle window | 5 minutes |
 
-Applications can enforce stronger password requirements through `PasswordPolicy`.
+Applications can enforce stronger password requirements using `PasswordPolicy`.
 
-## Email delivery
+---
 
-Features such as email confirmation, password recovery, password-change notifications, and email changes require an application-provided email sender.
+# 31. Production considerations
 
-Register your implementation through the PGLN.Auth email integration.
+The development setup in this README is intentionally simple.
 
-The application is responsible for connecting the package to its actual email provider.
+Before deploying PGLN.Auth to production:
 
-Email links use the configured `EmailDelivery` URLs.
+## Secrets
 
-Default development URLs are:
+Do not commit:
 
-```text
-https://localhost/confirm-email
-https://localhost/confirm-email-change
-https://localhost/reset-password
-```
+- JWT signing keys
+- HMAC secrets
+- database passwords
+- email provider credentials
 
-Production applications should replace these with their real frontend URLs.
+Use a proper secret-management solution.
 
-## Outbox processing
+## PostgreSQL
 
-PGLN.Auth uses an outbox for durable asynchronous email delivery.
+Use a managed or production-grade PostgreSQL deployment.
 
-The ASP.NET Core outbox background worker can be enabled by the consuming application so queued authentication emails are processed in the background.
+Do not expose the database unnecessarily to the public internet.
 
-The worker is enabled by default once the background-worker integration is registered.
+## Email
 
-Default worker behavior includes:
-
-| Setting | Default |
-|---|---|
-| Poll interval | 5 seconds |
-| Worker ID prefix | `aspnet` |
-| Batch size | 20 |
-| Maximum delivery attempts | 5 |
-| Initial retry delay | 10 seconds |
-| Maximum retry delay | 15 minutes |
-| Claim duration | 2 minutes |
-
-## Endpoints
-
-`MapPGLNAuthEndpoints()` uses `/api/auth` as its default prefix.
-
-### Registration and email
-
-| Method | Endpoint |
-|---|---|
-| POST | `/api/auth/register` |
-| POST | `/api/auth/confirm-email` |
-| POST | `/api/auth/resend-confirmation` |
-| POST | `/api/auth/change-email` |
-| POST | `/api/auth/confirm-email-change` |
-
-`/change-email` requires authentication.
-
-### Authentication
-
-| Method | Endpoint |
-|---|---|
-| POST | `/api/auth/login` |
-| POST | `/api/auth/refresh` |
-| POST | `/api/auth/logout` |
-| POST | `/api/auth/logout-all` |
-| POST | `/api/auth/verify-step-up` |
-
-Login and step-up verification are rate limited.
-
-### Password management
-
-| Method | Endpoint |
-|---|---|
-| POST | `/api/auth/forgot-password` |
-| POST | `/api/auth/reset-password` |
-| POST | `/api/auth/change-password` |
-
-`/change-password` requires authentication.
-
-The forgot-password flow is designed to avoid exposing whether an account exists for a submitted email address.
-
-### Sessions
-
-| Method | Endpoint |
-|---|---|
-| GET | `/api/auth/sessions` |
-| DELETE | `/api/auth/sessions/{sessionId}` |
-| DELETE | `/api/auth/sessions/others` |
-
-Session-management endpoints require authentication.
-
-### Trusted devices
-
-| Method | Endpoint |
-|---|---|
-| GET | `/api/auth/trusted-devices` |
-| POST | `/api/auth/trusted-devices/current` |
-| DELETE | `/api/auth/trusted-devices/{trustedDeviceId}` |
-
-Trusted-device endpoints require authentication.
-
-## Google authentication
-
-Optional Google authentication endpoints are:
-
-| Method | Endpoint |
-|---|---|
-| GET | `/api/auth/external/google/start` |
-| GET | `/api/auth/external/google/callback` |
-
-Google authentication is only registered when both a client ID and client secret are configured.
-
-Example:
-
-```json
-{
-  "PGLNAuth": {
-    "ExternalAuthentication": {
-      "Google": {
-        "ClientId": "YOUR_GOOGLE_CLIENT_ID",
-        "ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
-        "AllowedRedirectUris": [
-          "https://example.com/auth/google/callback"
-        ]
-      }
-    }
-  }
-}
-```
-
-Configured Google redirect URIs must use HTTPS, except localhost development redirects where HTTP is permitted.
-
-## Refresh-token security
-
-PGLN.Auth uses rotating refresh tokens.
-
-When a refresh token is successfully exchanged, the previous token is replaced.
-
-Reuse of a rotated refresh token is treated as replay and can invalidate the associated token family/session.
-
-Security-sensitive account changes, including password and email changes, invalidate existing authentication sessions as appropriate.
-
-## Step-up authentication
-
-PGLN.Auth supports step-up authentication for operations that require stronger verification than possession of an access token alone.
-
-Default challenge behavior:
-
-```text
-Lifetime: 10 minutes
-Maximum failed attempts: 5
-```
-
-Trusted-device support can be used to reduce repeated verification on recognized devices.
-
-## Rate limiting and lockout
-
-Default login rate limiting:
-
-```text
-Permit limit: 10
-Window: 1 minute
-Queue limit: 0
-```
-
-Default step-up rate limiting:
-
-```text
-Permit limit: 5
-Window: 1 minute
-Queue limit: 0
-```
-
-Account-level lockout and email-based login throttling provide additional protection against repeated authentication failures.
-
-## Middleware
-
-A typical application pipeline is:
+Replace:
 
 ```csharp
-app.UsePGLNAuth();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapPGLNAuthEndpoints();
+ConsoleEmailSender
 ```
 
-If the consuming application has additional middleware or authorization requirements, integrate PGLN.Auth into the normal ASP.NET Core middleware ordering used by that application.
+with a real email provider integration.
 
-## Architecture
+## HTTPS
 
-PGLN.Auth is split internally into focused assemblies for:
+Authentication endpoints should be served over HTTPS.
 
-- Application logic
-- Domain logic
-- Infrastructure
-- ASP.NET Core integration
-- Entity Framework Core persistence
-- PostgreSQL support
-- Contracts
+## Database migrations
 
-Consumers normally install and reference only the `PGLN.Auth` package and use the public facade rather than wiring the internal assemblies manually.
+Consider running migrations as part of the deployment process rather than automatically during every application startup.
 
-## Versioning
+## Development endpoints
 
-PGLN.Auth follows semantic versioning.
-
-The first stable release is:
+Remove or protect:
 
 ```text
-0.1.0
+/test/emails
+/test/email-preview
 ```
 
-Pre-release builds use release-candidate versions such as:
+before production deployment.
+
+---
+
+# 32. Troubleshooting
+
+## Docker container does not exist
+
+Create it:
+
+```powershell
+docker run --name pgln-auth-postgres `
+    -e POSTGRES_USER=postgres `
+    -e POSTGRES_PASSWORD=postgres `
+    -e POSTGRES_DB=pgln_auth `
+    -p 5434:5432 `
+    -d postgres:17
+```
+
+## Docker container exists but is stopped
+
+```powershell
+docker start pgln-auth-postgres
+```
+
+## Check PostgreSQL
+
+```powershell
+docker exec pgln-auth-postgres pg_isready `
+    -U postgres `
+    -d pgln_auth
+```
+
+## Database connection fails
+
+Verify:
 
 ```text
-0.1.0-rc.3
+Host=localhost
+Port=5434
+Database=pgln_auth
+Username=postgres
+Password=postgres
 ```
 
-## License
+and confirm:
 
-PGLN.Auth is licensed under the MIT License.
+```powershell
+docker ps
+```
+
+shows the container running.
+
+## Migrations fail
+
+Check that PostgreSQL is accepting connections:
+
+```powershell
+docker exec pgln-auth-postgres pg_isready `
+    -U postgres `
+    -d pgln_auth
+```
+
+Then check the application logs.
+
+## Email is not captured
+
+Verify that:
+
+```csharp
+builder.Services.AddPGLNAuthEmail<ConsoleEmailSender>();
+```
+
+is registered.
+
+Also verify:
+
+```csharp
+builder.Services.AddPGLNAuthOutboxBackgroundWorker();
+```
+
+is registered.
+
+## Custom email template is not being used
+
+Make sure:
+
+```csharp
+builder.Services.AddPGLNAuthEmail<ConsoleEmailSender>();
+
+builder.Services.AddSingleton<
+    IEmailTemplateRenderer,
+    MyEmailTemplateRenderer>();
+```
+
+The custom renderer must be registered **after** the PGLN.Auth email registration.
+
+---
+
+# 33. Recommended development setup
+
+For a simple local consumer application, the recommended structure is:
+
+```text
+MyAuthApp/
+│
+├── Infrastructure/
+│   └── Email/
+│       ├── ConsoleEmailSender.cs
+│       └── MyEmailTemplateRenderer.cs
+│
+├── Program.cs
+├── appsettings.json
+├── appsettings.Development.json
+└── MyAuthApp.csproj
+```
+
+The consuming application owns:
+
+- Branding
+- Email templates
+- Email provider implementation
+- Application URLs
+- Application-specific password policy
+- Environment-specific configuration
+- Deployment configuration
+
+PGLN.Auth owns the reusable authentication infrastructure.
+
+---
+
+# 34. Architecture
+
+The consuming application should not need to copy PGLN.Auth's authentication implementation into its own project.
+
+Conceptually:
+
+```text
+┌─────────────────────────────┐
+│       Consumer App          │
+│                             │
+│  API / UI / Application     │
+│  Branding                   │
+│  Email Provider             │
+│  Email Templates            │
+│  Application Configuration  │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│          PGLN.Auth          │
+│                             │
+│ Registration                │
+│ Login                       │
+│ JWT                         │
+│ Refresh Tokens              │
+│ Email Verification          │
+│ Password Reset              │
+│ Step-Up                     │
+│ Lockout / Throttling        │
+│ Sessions                    │
+│ Trusted Devices             │
+│ Outbox                      │
+│ Persistence                 │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│         PostgreSQL          │
+└─────────────────────────────┘
+```
+
+This allows PGLN.Auth to be reused across multiple .NET applications while each application retains control over its own presentation, configuration, infrastructure integrations, and deployment environment.
+
+---
+
+# 35. Summary
+
+The basic consumer workflow is:
+
+```text
+1. Create ASP.NET Core application
+2. Install PGLN.Auth
+3. Start PostgreSQL
+4. Configure connection string
+5. Generate secure JWT/HMAC secrets
+6. Configure PGLN.Auth
+7. Configure application security options
+8. Register email sender
+9. Optionally replace email templates
+10. Register outbox worker
+11. Apply migrations
+12. Configure middleware
+13. Map authentication endpoints
+14. Build
+15. Run
+16. Register a test user
+17. Inspect the generated email
+```
+
+Once these steps are complete, the application has a working PGLN.Auth authentication foundation without having to copy the authentication implementation into the application itself.
